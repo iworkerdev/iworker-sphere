@@ -1,5 +1,5 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateSphereSessionDto {
   @ApiProperty()
@@ -41,6 +41,11 @@ export class CreateSphereSessionDto {
   @IsOptional()
   @IsString()
   last_topic_of_search?: string;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsNumber()
+  session_execution_id?: number;
 }
 
 export class UpdateSphereSessionDto extends PartialType(

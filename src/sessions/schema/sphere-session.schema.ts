@@ -11,6 +11,9 @@ export class SphereSession extends mongoose.Document {
   @Prop({ required: true, unique: true })
   session_id: string;
 
+  @Prop({ required: true, unique: true })
+  session_execution_id: number;
+
   @Prop({ required: true })
   user_id: string;
 
