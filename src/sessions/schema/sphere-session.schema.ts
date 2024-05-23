@@ -17,13 +17,13 @@ export class SphereSession extends mongoose.Document {
   @Prop({ required: true })
   user_id: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   name: string;
 
   @Prop({ required: false, default: true })
   headless?: boolean;
 
-  @Prop({ required: true, unique: false, default: 8089 })
+  @Prop({ required: true, unique: true, default: 8089 })
   debug_port?: string;
 
   @Prop({ required: false, default: 'IDLE' })
