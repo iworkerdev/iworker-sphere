@@ -62,6 +62,16 @@ export class SessionsController {
     };
   }
 
+  @Get('automation/sync-sessions')
+  syncSessions() {
+    this.automationService.syncSessions();
+    return {
+      event: 'sync-sessions',
+      received: true,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   @Get('session/:id')
   findOne(@Param('id') id: string) {
     return this.sessionsService.findOne(id);

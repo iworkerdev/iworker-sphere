@@ -3,15 +3,16 @@ import * as puppeteer from 'puppeteer';
 
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { reduce, toNumber } from 'lodash';
+import { isArray, reduce, toNumber } from 'lodash';
 
-import { Cron } from '@nestjs/schedule';
 import { HttpService } from '@nestjs/axios';
 import { Logger } from '@nestjs/common';
 import { SessionsService } from '../sessions.service';
 import { SphereSession } from '../schema';
 import { WebSearchTopics } from 'src/constants';
 import { uniqBy } from 'lodash';
+
+// import { Cron } from '@nestjs/schedule';
 
 const LINKEN_SHPERE_URL = 'http://127.0.0.1:40080/sessions';
 
@@ -55,6 +56,12 @@ function extractSecondDomain(urls: string[]) {
     .filter((domain) => domain !== null);
 }
 
+type SphereApiSession = {
+  name: string;
+  uuid: string;
+  status: string;
+};
+
 @Injectable()
 export class AutomationService {
   constructor(
@@ -67,6 +74,52 @@ export class AutomationService {
 
   private logEvent(event: string, data: any) {
     this.logger.log(data, `Event: ${event}`);
+  }
+
+  async syncSessions() {
+    try {
+      const response = await this.httpService.axiosRef.get(
+        `${LINKEN_SHPERE_URL}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      const sessions = response?.data as SphereApiSession[];
+
+      if (isArray(sessions) && sessions.length > 0) {
+        for (let i = 0; i < sessions.length; i++) {
+          const session = sessions[i];
+
+          try {
+            const payload = {
+              session_id: session.uuid,
+              name: session.name,
+              status: session.status === 'stopped' ? 'IDLE' : 'ACTIVE',
+            };
+
+            const existingSession =
+              await this.sessionsService.findOneBySessionId(session.uuid);
+
+            if (existingSession) {
+              await this.sessionsService.updateOne(existingSession.id, payload);
+            } else {
+              const debug_port = await this.sessionsService.getNextDebugPort();
+              await this.sessionsService.createOne({
+                ...payload,
+                debug_port: `${debug_port}`,
+              });
+            }
+          } catch (error) {
+            console.error(error);
+          }
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   async createAndSaveLinkenSphereSession() {
@@ -158,8 +211,7 @@ export class AutomationService {
         });
       }
     } catch (error) {
-      console.error(error);
-      return null;
+      throw new NotFoundException(error?.response?.data?.message);
     }
   }
 
@@ -175,18 +227,32 @@ export class AutomationService {
 
     for (let i = 0; i < count; i++) {
       const session = sessions[i];
-      await this.startLinkenSphereSessions(session.id);
+
+      if (session?.id) {
+        try {
+          await this.startLinkenSphereSessions(session?.id);
+        } catch (error) {
+          console.log(error);
+        }
+      }
     }
 
     this.logEvent('START_SESSIONS', { count });
   }
 
   async endSessions() {
-    const sessions = await this.sessionsService.findManyActiveByUserId(5);
+    const sessions = await this.sessionsService.findManyActiveByUserId();
 
     for (let i = 0; i < sessions.length; i++) {
       const session = sessions[i];
-      await this.stopLinkenSphereSession(session.id);
+
+      if (session?.id) {
+        try {
+          await this.stopLinkenSphereSession(session.id);
+        } catch (error) {
+          console.log(error);
+        }
+      }
     }
 
     this.logEvent('END_SESSIONS', { count: sessions.length });
@@ -271,8 +337,6 @@ export class AutomationService {
         );
       }
 
-      this.logEvent('WARM_UP_SESSION_PAGE', { session_id, debug_port, topic });
-
       // delay for 5 seconds
       const linksToVisit = await this.getWebsiteLinksToScrape(topic);
 
@@ -315,8 +379,8 @@ export class AutomationService {
   }
 
   //start 5 sessions every 30 minutes
-  @Cron('0 */30 * * * *')
-  async handleCron() {
-    this.startSessions(5);
-  }
+  //   @Cron('0 */30 * * * *')
+  //   async handleCron() {
+  //     this.startSessions(3);
+  //   }
 }
