@@ -1,5 +1,11 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsDateString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateSphereSessionDto {
   @ApiProperty()
@@ -34,7 +40,7 @@ export class CreateSphereSessionDto {
 
   @ApiProperty()
   @IsOptional()
-  @IsString()
+  @IsDateString()
   last_activity?: Date;
 
   @ApiProperty()
