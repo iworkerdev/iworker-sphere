@@ -115,6 +115,7 @@ export class AutomationService {
               });
             }
           } catch (error) {
+            console.error(error);
             console.error({
               message: 'Error syncing session',
               session,
@@ -406,24 +407,44 @@ export class AutomationService {
     const config = await this.getExecutionConfig();
     let sessions =
       await this.sessionsService.findAllWhereExecutionIdIsGreaterThan(
-        config.last_execution_id - 1,
+        config.last_execution_id,
       );
+
+    let startExecutionId = config.last_execution_id;
 
     if (sessions.length === 0) {
       //reset the last execution id
+
+      startExecutionId =
+        (await this.sessionsService.getInitialExecutionId()) - 1;
+
+      console.log({ startExecutionId });
+
       const updatedConfig =
-        await this.sessionsExecutionConfigModel.findByIdAndUpdate(config.id, {
-          last_execution_id: await this.sessionsService.getInitialExecutionId(),
-          last_execution_date: new Date(),
-        });
+        await this.sessionsExecutionConfigModel.findByIdAndUpdate(
+          config.id,
+          {
+            last_execution_id: startExecutionId,
+            last_execution_date: new Date(),
+          },
+          { new: true },
+        );
 
       sessions =
         await this.sessionsService.findAllWhereExecutionIdIsGreaterThan(
-          updatedConfig.last_execution_id - 1,
+          updatedConfig.last_execution_id,
         );
     }
 
     const sessionToWarmUp = sessions.slice(0, config.executions_per_interval);
+
+    const lastSessionExecutionId =
+      sessionToWarmUp[sessionToWarmUp.length - 1]?.session_execution_id;
+
+    console.log({
+      startExecutionId,
+      lastSessionExecutionId,
+    });
 
     for (let i = 0; i < sessionToWarmUp.length; i++) {
       const session = sessionToWarmUp[i];
@@ -437,7 +458,7 @@ export class AutomationService {
     }
 
     await this.sessionsExecutionConfigModel.findByIdAndUpdate(config.id, {
-      last_execution_id: sessions[sessions.length - 1].session_execution_id,
+      last_execution_id: lastSessionExecutionId,
       last_execution_date: new Date(),
     });
   }
