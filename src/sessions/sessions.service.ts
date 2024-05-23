@@ -20,7 +20,7 @@ export class SessionsService {
 
   async findAll() {
     try {
-      const sessions = this.sphereSessionModel.find();
+      const sessions = await this.sphereSessionModel.find();
       return sessions;
     } catch (error) {
       return HandleCatchException(error);
@@ -29,7 +29,7 @@ export class SessionsService {
 
   async findOne(id: string) {
     try {
-      const session = this.sphereSessionModel.findById(id);
+      const session = await this.sphereSessionModel.findById(id);
 
       if (!session) {
         throw new NotFoundException('Session not found');
@@ -43,7 +43,7 @@ export class SessionsService {
 
   async findOneBySessionId(sessionId: string) {
     try {
-      const session = this.sphereSessionModel.findOne({
+      const session = await this.sphereSessionModel.findOne({
         session_id: sessionId,
       });
 
@@ -59,7 +59,7 @@ export class SessionsService {
 
   async findOneByDebugPort(debugPort: number) {
     try {
-      const session = this.sphereSessionModel.findOne({
+      const session = await this.sphereSessionModel.findOne({
         debug_port: debugPort,
       });
 
@@ -75,7 +75,7 @@ export class SessionsService {
 
   async findManyIdleByUserId(count: number) {
     try {
-      const sessions = this.sphereSessionModel
+      const sessions = await this.sphereSessionModel
         .find({
           user_id: this.configService.get('USER_ID'),
           status: 'IDLE',
@@ -89,13 +89,20 @@ export class SessionsService {
 
   async findManyActiveByUserId(count?: number) {
     try {
-      let sessions = this.sphereSessionModel.find({
-        user_id: this.configService.get('USER_ID'),
-        status: 'ACTIVE',
-      });
+      let sessions = [];
 
       if (count) {
-        sessions = sessions.limit(count);
+        sessions = await this.sphereSessionModel
+          .find({
+            user_id: this.configService.get('USER_ID'),
+            status: 'ACTIVE',
+          })
+          .limit(count);
+      } else {
+        await this.sphereSessionModel.find({
+          user_id: this.configService.get('USER_ID'),
+          status: 'ACTIVE',
+        });
       }
 
       return sessions;
@@ -137,6 +144,37 @@ export class SessionsService {
         toNumber(session.session_execution_id),
       );
       return Math.max(...sessionExecutionIds) + 1;
+    } catch (error) {
+      return HandleCatchException(error);
+    }
+  }
+
+  async getInitialExecutionId() {
+    try {
+      const sessions = await this.sphereSessionModel.find({
+        user_id: this.configService.get('USER_ID'),
+      });
+
+      if (sessions.length === 0) {
+        return 1541;
+      }
+
+      const sessionExecutionIds = sessions.map((session) =>
+        toNumber(session.session_execution_id),
+      );
+      return Math.min(...sessionExecutionIds);
+    } catch (error) {
+      return HandleCatchException(error);
+    }
+  }
+
+  async findAllWhereExecutionIdIsGreaterThan(executionId: number) {
+    try {
+      const sessions = await this.sphereSessionModel.find({
+        user_id: this.configService.get('USER_ID'),
+        session_execution_id: { $gt: executionId },
+      });
+      return sessions;
     } catch (error) {
       return HandleCatchException(error);
     }
