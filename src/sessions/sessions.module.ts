@@ -1,5 +1,10 @@
 import { Logger, Module } from '@nestjs/common';
-import { SphereSession, SphereSessionSchema } from './schema';
+import {
+  SessionsExecutionConfig,
+  SessionsExecutionConfigSchema,
+  SphereSession,
+  SphereSessionSchema,
+} from './schema';
 
 import { AutomationService } from './automation/automation.service';
 import { HttpModule } from '@nestjs/axios';
@@ -10,7 +15,14 @@ import { SessionsService } from './sessions.service';
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: SphereSession.name, schema: SphereSessionSchema },
+      {
+        name: SphereSession.name,
+        schema: SphereSessionSchema,
+      },
+      {
+        name: SessionsExecutionConfig.name,
+        schema: SessionsExecutionConfigSchema,
+      },
     ]),
     HttpModule,
   ],
