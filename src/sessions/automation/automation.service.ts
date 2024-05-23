@@ -52,7 +52,25 @@ export class AutomationService {
     private eventEmitter: EventEmitter2,
     @InjectModel(SessionsExecutionConfig.name)
     private sessionsExecutionConfigModel: Model<SessionsExecutionConfig>,
-  ) {}
+  ) {
+    async function signInToLinkenSphere() {
+      try {
+        const response = await httpService.axiosRef.post(
+          `http://127.0.0.1:40080/auth/signin`,
+          {
+            email: process.env.LINKEN_SPHERE_EMAIL_ADDRESS,
+            password: process.env.LINKEN_SPHERE_PASSWORD,
+            autologin: true,
+          },
+        );
+        const data = response?.data;
+        console.log(data);
+      } catch (error) {
+        console.error(error?.response?.data);
+      }
+    }
+    signInToLinkenSphere();
+  }
   private readonly logger = new Logger();
   private browser: puppeteer.Browser;
 
@@ -97,12 +115,19 @@ export class AutomationService {
               });
             }
           } catch (error) {
-            console.error(error);
+            console.error({
+              message: 'Error syncing session',
+              session,
+              error: error.response?.data,
+            });
           }
         }
       }
     } catch (error) {
-      console.error(error);
+      console.error({
+        message: 'Error fetching sessions' + error?.message,
+        error: error.response?.data,
+      });
     }
   }
 
