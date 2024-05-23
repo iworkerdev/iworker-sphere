@@ -392,6 +392,7 @@ export class AutomationService {
             (await this.sessionsService.getInitialExecutionId()) - 1,
           last_execution_date: new Date(),
           execution_interval: 5,
+          executions_per_interval: 5,
         });
 
         return _config;
