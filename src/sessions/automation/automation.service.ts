@@ -55,16 +55,11 @@ export class AutomationService {
   ) {
     async function signInToLinkenSphere() {
       try {
-        const response = await httpService.axiosRef.post(
-          `http://127.0.0.1:40080/auth/signin`,
-          {
-            email: process.env.LINKEN_SPHERE_EMAIL_ADDRESS,
-            password: process.env.LINKEN_SPHERE_PASSWORD,
-            autologin: true,
-          },
-        );
-        const data = response?.data;
-        console.log(data);
+        await httpService.axiosRef.post(`http://127.0.0.1:40080/auth/signin`, {
+          email: process.env.LINKEN_SPHERE_EMAIL_ADDRESS,
+          password: process.env.LINKEN_SPHERE_PASSWORD,
+          autologin: true,
+        });
       } catch (error) {
         console.error(error?.response?.data);
       }
@@ -102,8 +97,13 @@ export class AutomationService {
               status: session.status === 'stopped' ? 'IDLE' : 'ACTIVE',
             };
 
-            const existingSession =
-              await this.sessionsService.findOneBySessionId(session.uuid);
+            let existingSession = null;
+
+            try {
+              existingSession = await this.sessionsService.findOneBySessionId(
+                session.uuid,
+              );
+            } catch (error) {}
 
             if (existingSession) {
               await this.sessionsService.updateOne(existingSession.id, payload);
