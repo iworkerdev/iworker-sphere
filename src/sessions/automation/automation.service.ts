@@ -388,7 +388,8 @@ export class AutomationService {
 
       if (config.length === 0) {
         const _config = await this.sessionsExecutionConfigModel.create({
-          last_execution_id: await this.sessionsService.getInitialExecutionId(),
+          last_execution_id:
+            (await this.sessionsService.getInitialExecutionId()) - 1,
           last_execution_date: new Date(),
           execution_interval: 5,
         });
@@ -417,8 +418,6 @@ export class AutomationService {
 
       startExecutionId =
         (await this.sessionsService.getInitialExecutionId()) - 1;
-
-      console.log({ startExecutionId });
 
       const updatedConfig =
         await this.sessionsExecutionConfigModel.findByIdAndUpdate(
