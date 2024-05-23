@@ -72,6 +72,16 @@ export class SessionsController {
     };
   }
 
+  @Get('automation/trigger-warm-up-execution')
+  triggerWarmUpExecution() {
+    this.automationService.executeWarmUpForSessions();
+    return {
+      event: 'trigger-warm-up-execution',
+      received: true,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
   @Get('session/:id')
   findOne(@Param('id') id: string) {
     return this.sessionsService.findOne(id);

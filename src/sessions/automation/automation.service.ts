@@ -8,34 +8,16 @@ import { isArray, reduce, toNumber } from 'lodash';
 import { HttpService } from '@nestjs/axios';
 import { Logger } from '@nestjs/common';
 import { SessionsService } from '../sessions.service';
-import { SphereSession } from '../schema';
+import { SessionsExecutionConfig } from '../schema';
 import { WebSearchTopics } from 'src/constants';
 import { uniqBy } from 'lodash';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { EVENTS, StopSessionEvent, WarmUpProfileEvent } from './events-config';
 
 // import { Cron } from '@nestjs/schedule';
 
 const LINKEN_SHPERE_URL = 'http://127.0.0.1:40080/sessions';
-
-const EVENTS = {
-  SESSION_LIVE: 'linken.sphere.session.live',
-};
-
-class SessionCreatedEvent {
-  public readonly payload: {
-    session_id: string;
-    debug_port: string;
-    last_topic_of_search: string;
-    _id: string;
-  };
-  constructor(public session: SphereSession) {
-    this.payload = {
-      _id: session.id,
-      session_id: session.session_id,
-      debug_port: session.debug_port,
-      last_topic_of_search: session.last_topic_of_search,
-    };
-  }
-}
 
 function extractSecondDomain(urls: string[]) {
   return urls
@@ -68,6 +50,8 @@ export class AutomationService {
     private sessionsService: SessionsService,
     private httpService: HttpService,
     private eventEmitter: EventEmitter2,
+    @InjectModel(SessionsExecutionConfig.name)
+    private sessionsExecutionConfigModel: Model<SessionsExecutionConfig>,
   ) {}
   private readonly logger = new Logger();
   private browser: puppeteer.Browser;
@@ -146,13 +130,11 @@ export class AutomationService {
     }
   }
 
-  async startLinkenSphereSessions(_id: string) {
+  async startLinkenSphereSession(_id: string) {
     try {
       const session = await this.sessionsService.findOne(_id);
 
       if (session.status === 'ACTIVE') {
-        this.logEvent('SESSION_ALREADY_ACTIVE', session);
-        this.eventEmitter.emit(EVENTS.SESSION_LIVE, session);
         return session;
       }
 
@@ -171,25 +153,22 @@ export class AutomationService {
       if (data?.uuid) {
         const _s = await this.sessionsService.updateOne(_id, {
           status: 'ACTIVE',
+          last_activity: new Date(),
         });
-        this.logEvent(`START_SESSION`, {
-          id: _id,
-          session_id: session.session_id,
-        });
-        const event = new SessionCreatedEvent(_s);
-        this.eventEmitter.emit(EVENTS.SESSION_LIVE, event);
+        return _s;
       }
-
-      return response?.data;
+      return session;
     } catch (error) {
       console.error(error);
       return null;
     }
   }
 
-  async stopLinkenSphereSession(_id: string) {
+  @OnEvent(EVENTS.STOP_SESSION)
+  async stopLinkenSphereSession(event: StopSessionEvent) {
+    const { session_id } = event.payload;
     try {
-      const session = await this.sessionsService.findOne(_id);
+      const session = await this.sessionsService.findOneBySessionId(session_id);
 
       const response = await this.httpService.axiosRef.post(
         `${LINKEN_SHPERE_URL}/stop`,
@@ -201,11 +180,10 @@ export class AutomationService {
       const { data } = response;
 
       if (data) {
-        const _s = await this.sessionsService.updateOne(_id, {
+        const _s = await this.sessionsService.updateOne(session.id, {
           status: 'IDLE',
         });
         this.logEvent('STOP_SESSION', {
-          id: _id,
           session_id: session.session_id,
           status: _s.status,
         });
@@ -230,7 +208,7 @@ export class AutomationService {
 
       if (session?.id) {
         try {
-          await this.startLinkenSphereSessions(session?.id);
+          await this.startLinkenSphereSession(session?.id);
         } catch (error) {
           console.log(error);
         }
@@ -247,11 +225,10 @@ export class AutomationService {
       const session = sessions[i];
 
       if (session?.id) {
-        try {
-          await this.stopLinkenSphereSession(session.id);
-        } catch (error) {
-          console.log(error);
-        }
+        const stopSessionEvent = new StopSessionEvent({
+          session_id: session.session_id,
+        });
+        this.eventEmitter.emit(EVENTS.STOP_SESSION, stopSessionEvent);
       }
     }
 
@@ -310,8 +287,8 @@ export class AutomationService {
     return uniqBy(domains, 'domain')?.slice(0, 10);
   }
 
-  @OnEvent(EVENTS.SESSION_LIVE)
-  async warmUpSession(event: SessionCreatedEvent) {
+  @OnEvent(EVENTS.WARM_UP_PROFILE)
+  async warmUpSession(event: WarmUpProfileEvent) {
     const { session_id, debug_port, last_topic_of_search, _id } = event.payload;
     try {
       const currentTopics = await this.sessionsService.getLastTopicsOfSearch();
@@ -325,7 +302,9 @@ export class AutomationService {
       );
 
       const topic = allTopics[Math.floor(Math.random() * allTopics.length)];
-      this.logEvent('WARM_UP_SESSION', { session_id, debug_port, topic, _id });
+      this.logger.log(
+        `WARM_UP_SESSION_STARTED: topic=${topic} - session_id=${session_id}`,
+      );
 
       const browser = await this.connectToBrowser(toNumber(debug_port));
       // delay 2.5 seconds
@@ -365,22 +344,82 @@ export class AutomationService {
         last_activity: new Date(),
       });
 
-      await this.stopLinkenSphereSession(_id);
-      this.logEvent('WARM_UP_SESSION_COMPLETED', {
-        session_id,
-        topic,
-        no_of_links: linksToVisit.length,
-        timeTaken: `${(endTimes - startTimes) / 1000} seconds`,
-      });
+      const stopSessionEvent = new StopSessionEvent({ session_id });
+      this.eventEmitter.emit(EVENTS.STOP_SESSION, stopSessionEvent);
+      this.logger.log(
+        `WARM_UP_SESSION_COMPLETED: topic=${topic} - session_id=${session_id} - no_of_links=${linksToVisit.length} - timeTaken=${(endTimes - startTimes) / 1000} seconds`,
+      );
     } catch (error) {
+      const stopSessionEvent = new StopSessionEvent({ session_id });
+      this.eventEmitter.emit(EVENTS.STOP_SESSION, stopSessionEvent);
       console.error(error);
-      await this.stopLinkenSphereSession(_id);
     }
   }
 
-  //start 5 sessions every 30 minutes
-  //   @Cron('0 */30 * * * *')
-  //   async handleCron() {
-  //     this.startSessions(3);
-  //   }
+  async getExecutionConfig() {
+    try {
+      const config = await this.sessionsExecutionConfigModel.find();
+
+      if (config.length === 0) {
+        const _config = await this.sessionsExecutionConfigModel.create({
+          last_execution_id: await this.sessionsService.getInitialExecutionId(),
+          last_execution_date: new Date(),
+          execution_interval: 5,
+        });
+
+        return _config;
+      } else {
+        return config?.[0];
+      }
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
+  }
+
+  async executeWarmUpForSessions() {
+    const config = await this.getExecutionConfig();
+    let sessions =
+      await this.sessionsService.findAllWhereExecutionIdIsGreaterThan(
+        config.last_execution_id - 1,
+      );
+
+    if (sessions.length === 0) {
+      //reset the last execution id
+      const updatedConfig =
+        await this.sessionsExecutionConfigModel.findByIdAndUpdate(config.id, {
+          last_execution_id: await this.sessionsService.getInitialExecutionId(),
+          last_execution_date: new Date(),
+        });
+
+      sessions =
+        await this.sessionsService.findAllWhereExecutionIdIsGreaterThan(
+          updatedConfig.last_execution_id - 1,
+        );
+    }
+
+    const sessionToWarmUp = sessions.slice(0, config.executions_per_interval);
+
+    for (let i = 0; i < sessionToWarmUp.length; i++) {
+      const session = sessionToWarmUp[i];
+      try {
+        const _s = await this.startLinkenSphereSession(session.id);
+        const event = new WarmUpProfileEvent(_s);
+        this.eventEmitter.emit(EVENTS.WARM_UP_PROFILE, event);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    await this.sessionsExecutionConfigModel.findByIdAndUpdate(config.id, {
+      last_execution_id: sessions[sessions.length - 1].session_execution_id,
+      last_execution_date: new Date(),
+    });
+  }
+
+  // start 5 sessions every 30 minutes
+  // @Cron('0 */35 * * * *')
+  // async handleCron() {
+  //   this.startSessions(3);
+  // }
 }
