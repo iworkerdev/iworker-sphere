@@ -41,6 +41,22 @@ export class SessionsService {
     }
   }
 
+  async findOneBySessionId(sessionId: string) {
+    try {
+      const session = this.sphereSessionModel.findOne({
+        session_id: sessionId,
+      });
+
+      if (!session) {
+        throw new NotFoundException('Session not found');
+      }
+
+      return session;
+    } catch (error) {
+      return HandleCatchException(error);
+    }
+  }
+
   async findOneByDebugPort(debugPort: number) {
     try {
       const session = this.sphereSessionModel.findOne({
@@ -71,14 +87,17 @@ export class SessionsService {
     }
   }
 
-  async findManyActiveByUserId(count: number) {
+  async findManyActiveByUserId(count?: number) {
     try {
-      const sessions = this.sphereSessionModel
-        .find({
-          user_id: this.configService.get('USER_ID'),
-          status: 'ACTIVE',
-        })
-        .limit(count);
+      let sessions = this.sphereSessionModel.find({
+        user_id: this.configService.get('USER_ID'),
+        status: 'ACTIVE',
+      });
+
+      if (count) {
+        sessions = sessions.limit(count);
+      }
+
       return sessions;
     } catch (error) {
       return HandleCatchException(error);
@@ -104,11 +123,31 @@ export class SessionsService {
     }
   }
 
+  async getNextSessionExecutionId() {
+    try {
+      const sessions = await this.sphereSessionModel.find({
+        user_id: this.configService.get('USER_ID'),
+      });
+
+      if (sessions.length === 0) {
+        return 1541;
+      }
+
+      const sessionExecutionIds = sessions.map((session) =>
+        toNumber(session.session_execution_id),
+      );
+      return Math.max(...sessionExecutionIds) + 1;
+    } catch (error) {
+      return HandleCatchException(error);
+    }
+  }
+
   async createOne(session: CreateSphereSessionDto) {
     try {
       const newSession = new this.sphereSessionModel({
         ...session,
         user_id: this.configService.get('USER_ID'),
+        session_execution_id: await this.getNextSessionExecutionId(),
       });
       return newSession.save();
     } catch (error) {
