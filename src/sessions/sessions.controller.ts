@@ -124,21 +124,21 @@ export class SessionsController {
         });
       }
 
-      await this.automationService.changeActiveDesktop(selectedDesktop.uuid);
-
-      await this.automationService.syncSessions();
-
-      const event = new ProfileWarmUpEvent({ profile_name });
-      this.eventEmitter.emit(EVENTS.PROFILE_WARM_UP, event);
+      this.triggerInnit(selectedDesktop.uuid, profile_name);
 
       return {
-        event: 'trigger-warm-up-execution',
-        profile_name,
-        received: true,
+        event: `trigger-warm-up-execution for ${profile_name}`,
         message:
-          'Warm up execution triggered for active desktop this will take some time to complete.',
+          'Warm up execution triggered for active desktop This will take some time to complete. Please check the logs for more details.',
       };
     }
+  }
+
+  async triggerInnit(desktopId: string, profile_name: string) {
+    await this.automationService.changeActiveDesktop(desktopId);
+    await this.automationService.syncSessions();
+    const event = new ProfileWarmUpEvent({ profile_name });
+    this.eventEmitter.emit(EVENTS.PROFILE_WARM_UP, event);
   }
 
   @Get('session/:id')
