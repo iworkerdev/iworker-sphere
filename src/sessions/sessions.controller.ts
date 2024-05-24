@@ -107,7 +107,7 @@ export class SessionsController {
       throw new NotFoundException({
         message: `Profile ${profile_name} not found in the available Profiles.  Please select a valid profile name.`,
         hint: 'Profile names are case sensitive!!',
-        available_desktops: map(desktops, 'name'),
+        available_desktops: map(desktops, (d) => `${d.name} (${d.team_name})`),
       });
     } else {
       const activeSessions = await this.automationService.getRunningSessions();
