@@ -87,6 +87,34 @@ export class SessionsService {
     }
   }
 
+  async findManyActiveByDesktopId(desktopId: string) {
+    try {
+      const sessions = await this.sphereSessionModel.find({
+        user_id: this.configService.get('USER_ID'),
+        desktop_id: desktopId,
+        status: 'ACTIVE',
+      });
+      return sessions;
+    } catch (error) {
+      return HandleCatchException(error);
+    }
+  }
+
+  async deactivateAllActiveSessions() {
+    try {
+      const sessions = await this.sphereSessionModel.updateMany(
+        {
+          user_id: this.configService.get('USER_ID'),
+          status: 'ACTIVE',
+        },
+        { status: 'IDLE' },
+      );
+      return sessions;
+    } catch (error) {
+      return HandleCatchException(error);
+    }
+  }
+
   async findManyActiveByUserId(count?: number) {
     try {
       let sessions = [];
