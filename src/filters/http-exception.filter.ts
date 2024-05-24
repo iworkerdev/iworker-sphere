@@ -17,9 +17,14 @@ export class HttpExceptionFilter<T extends HttpException>
     const exceptionResponse = exception.getResponse();
 
     const error =
-      typeof response === 'string'
-        ? { message: exceptionResponse }
-        : (exceptionResponse as Record<string, unknown>);
+      status === 429
+        ? {
+            message:
+              'Threshold limit exceeded, Too many requests Please try again  after some time',
+          }
+        : typeof response === 'string'
+          ? { message: exceptionResponse }
+          : (exceptionResponse as Record<string, unknown>);
 
     response.status(status).json({
       ...error,

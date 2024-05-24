@@ -1,3 +1,6 @@
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+
+import { APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
@@ -15,12 +18,24 @@ import { SessionsModule } from './sessions/sessions.module';
       isGlobal: true,
     }),
     HttpModule,
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 1,
+      },
+    ]),
     MongooseModule.forRoot(GLOBAL_CONFIG.MONGODB_URI),
     EventEmitterModule.forRoot(),
     SessionsModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}
