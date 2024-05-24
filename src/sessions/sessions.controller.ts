@@ -80,16 +80,6 @@ export class SessionsController {
     };
   }
 
-  @Get('automation/trigger-warm-up-execution')
-  triggerWarmUpExecution() {
-    this.automationService.executeWarmUpForSessions();
-    return {
-      event: 'trigger-warm-up-execution',
-      received: true,
-      timestamp: new Date().toISOString(),
-    };
-  }
-
   @Post('automation/trigger-warm-up-execution')
   async triggerWarmUpExecutionForActiveDesktop(
     @Body('profile_name') profile_name: string,

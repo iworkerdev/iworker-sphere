@@ -209,14 +209,26 @@ export class SessionsService {
     }
   }
 
-  async getInitialExecutionId() {
+  async getInitialExecutionId(desktop_id: string) {
     try {
       const sessions = await this.sphereSessionModel.find({
         user_id: this.configService.get('USER_ID'),
+        desktop_id: desktop_id,
       });
 
-      if (sessions.length === 0) {
+      const allSessions = await this.sphereSessionModel.find({
+        user_id: this.configService.get('USER_ID'),
+      });
+
+      if (allSessions.length === 0) {
         return 1541;
+      }
+
+      if (sessions.length === 0) {
+        const sessionExecutionIds = allSessions.map((session) =>
+          toNumber(session.session_execution_id),
+        );
+        return Math.min(...sessionExecutionIds);
       }
 
       const sessionExecutionIds = sessions.map((session) =>
@@ -272,11 +284,15 @@ export class SessionsService {
     }
   }
 
-  async findAllWhereExecutionIdIsGreaterThan(executionId: number) {
+  async findAllWhereExecutionIdIsGreaterThan(
+    executionId: number,
+    desktopId: string,
+  ) {
     try {
       const sessions = await this.sphereSessionModel.find({
         user_id: this.configService.get('USER_ID'),
         session_execution_id: { $gt: executionId },
+        desktop_id: desktopId,
       });
       return sessions;
     } catch (error) {
@@ -320,13 +336,13 @@ export class SessionsService {
 
   async findSessionsForCurrentExecution(
     executionId: number,
-    desktop_name: string,
+    desktopId: string,
   ) {
     try {
       const sessions = await this.sphereSessionModel.find({
         user_id: this.configService.get('USER_ID'),
         session_execution_id: { $gt: executionId },
-        desktop_name: desktop_name,
+        desktop_id: desktopId,
       });
       return sessions;
     } catch (error) {

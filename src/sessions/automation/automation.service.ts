@@ -248,6 +248,11 @@ export class AutomationService {
         }
       }
 
+      this.logEvent('SYNC_SESSIONS', {
+        count: results.length,
+        desktop: activeDesktop?.name,
+      });
+
       return results;
     } catch (error) {
       console.error({
@@ -543,7 +548,7 @@ export class AutomationService {
       if (!config) {
         const _config = await this.sessionsExecutionConfigModel.create({
           last_execution_id:
-            (await this.sessionsService.getInitialExecutionId()) - 1,
+            (await this.sessionsService.getInitialExecutionId(desktop_id)) - 1,
           last_execution_date: new Date(),
           execution_interval: 10,
           executions_per_interval: 10,
@@ -559,65 +564,6 @@ export class AutomationService {
       console.error(error);
       return null;
     }
-  }
-
-  async executeWarmUpForSessions() {
-    const config = await this.getExecutionConfig('1', 'Desktop 1');
-
-    let sessions =
-      await this.sessionsService.findAllWhereExecutionIdIsGreaterThan(
-        config.last_execution_id,
-      );
-
-    let startExecutionId = config.last_execution_id;
-
-    if (sessions.length === 0) {
-      //reset the last execution id
-
-      startExecutionId =
-        (await this.sessionsService.getInitialExecutionId()) - 1;
-
-      const updatedConfig =
-        await this.sessionsExecutionConfigModel.findByIdAndUpdate(
-          config.id,
-          {
-            last_execution_id: startExecutionId,
-            last_execution_date: new Date(),
-          },
-          { new: true },
-        );
-
-      sessions =
-        await this.sessionsService.findAllWhereExecutionIdIsGreaterThan(
-          updatedConfig.last_execution_id,
-        );
-    }
-
-    const sessionToWarmUp = sessions.slice(0, config.executions_per_interval);
-
-    const lastSessionExecutionId =
-      sessionToWarmUp[sessionToWarmUp.length - 1]?.session_execution_id;
-
-    console.log({
-      startExecutionId,
-      lastSessionExecutionId,
-    });
-
-    for (let i = 0; i < sessionToWarmUp.length; i++) {
-      const session = sessionToWarmUp[i];
-      try {
-        const _s = await this.startLinkenSphereSession(session.id);
-        const event = new WarmUpProfileEvent(_s);
-        this.eventEmitter.emit(EVENTS.WARM_UP_SESSIONS, event);
-      } catch (error) {
-        console.error(error);
-      }
-    }
-
-    await this.sessionsExecutionConfigModel.findByIdAndUpdate(config.id, {
-      last_execution_id: lastSessionExecutionId,
-      last_execution_date: new Date(),
-    });
   }
 
   @OnEvent(EVENTS.PROFILE_WARM_UP)
@@ -640,7 +586,7 @@ export class AutomationService {
 
     let sessions = await this.sessionsService.findSessionsForCurrentExecution(
       config.last_execution_id,
-      profile_name,
+      desktop.desktop_id,
     );
 
     let startExecutionId = config.last_execution_id;
@@ -649,7 +595,8 @@ export class AutomationService {
       //reset the last execution id
 
       startExecutionId =
-        (await this.sessionsService.getInitialExecutionId()) - 1;
+        (await this.sessionsService.getInitialExecutionId(desktop.desktop_id)) -
+        1;
 
       const updatedConfig =
         await this.sessionsExecutionConfigModel.findByIdAndUpdate(
@@ -663,7 +610,7 @@ export class AutomationService {
 
       sessions = await this.sessionsService.findSessionsForCurrentExecution(
         updatedConfig.last_execution_id,
-        profile_name,
+        desktop.desktop_id,
       );
     }
 

@@ -21,7 +21,7 @@ export class SessionsExecutionConfig extends mongoose.Document {
   executions_per_interval: number;
 
   @Prop({ required: true, unique: true })
-  desktop_id: number;
+  desktop_id: string;
 
   @Prop({ required: true })
   desktop_name: string;
