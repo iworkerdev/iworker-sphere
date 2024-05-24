@@ -17,7 +17,7 @@ export class SessionsExecutionConfig extends mongoose.Document {
   @Prop({ required: true })
   execution_interval: number;
 
-  @Prop({ required: false, default: 5 })
+  @Prop({ required: false, default: 10 })
   executions_per_interval: number;
 }
 

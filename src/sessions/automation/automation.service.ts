@@ -317,6 +317,13 @@ export class AutomationService {
           runningSessions.length === 0 &&
           session?.session_execution_id !== highestExecutionId;
 
+        console.log({
+          highestExecutionIdInExecutionBatch,
+          highestExecutionId,
+          runningSessions,
+          canStartNewWarmUpBatch,
+        });
+
         if (
           canStartNewWarmUpBatch &&
           session?.desktop_id === activeDesktop?.uuid
@@ -512,8 +519,8 @@ export class AutomationService {
           last_execution_id:
             (await this.sessionsService.getInitialExecutionId()) - 1,
           last_execution_date: new Date(),
-          execution_interval: 5,
-          executions_per_interval: 5,
+          execution_interval: 10,
+          executions_per_interval: 10,
         });
 
         return _config;
