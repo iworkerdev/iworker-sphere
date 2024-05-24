@@ -3,7 +3,7 @@ import * as puppeteer from 'puppeteer';
 
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { chunk, filter, isArray, omit, reduce, toNumber } from 'lodash';
+import { chunk, filter, isArray, last, omit, reduce, toNumber } from 'lodash';
 
 import { HttpService } from '@nestjs/axios';
 import { Logger } from '@nestjs/common';
@@ -304,7 +304,10 @@ export class AutomationService {
           status: _s.status,
         });
 
-        const runningSessions = await this.getRunningSessions();
+        const activeSessions =
+          await this.sessionsService.findManyActiveByDesktopId(
+            session.desktop_id,
+          );
 
         const highestExecutionIdInExecutionBatch =
           await this.sessionsService.getHighestExecutionIdInExecutionBatch(
@@ -312,26 +315,26 @@ export class AutomationService {
             session?.desktop_id,
           );
 
-        const canStartNewWarmUpBatch =
-          highestExecutionIdInExecutionBatch === highestExecutionId &&
-          runningSessions.length === 0 &&
-          session?.session_execution_id !== highestExecutionId;
+        const isLastSession =
+          highestExecutionIdInExecutionBatch >= highestExecutionId;
 
-        console.log({
-          highestExecutionIdInExecutionBatch,
-          highestExecutionId,
-          runningSessions,
-          canStartNewWarmUpBatch,
-        });
+        if (!isLastSession && activeSessions.length === 0) {
+          console.log({
+            message: `Starting sessions for desktop ${activeDesktop?.name} New Execution Batch ${session?.session_execution_batch_id + 1}`,
+            highestExecutionId,
+            highestExecutionIdInExecutionBatch,
+          });
 
-        if (
-          canStartNewWarmUpBatch &&
-          session?.desktop_id === activeDesktop?.uuid
-        ) {
           const e = new ProfileWarmUpEvent({
             profile_name: activeDesktop?.name,
           });
           this.eventEmitter.emit(EVENTS.PROFILE_WARM_UP, e);
+        } else {
+          console.log({
+            message: `End Of Warmup for profile ${activeDesktop?.name}`,
+            highestExecutionId,
+            highestExecutionIdInExecutionBatch,
+          });
         }
       }
     } catch (error) {
