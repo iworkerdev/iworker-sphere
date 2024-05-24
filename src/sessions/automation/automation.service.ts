@@ -534,17 +534,21 @@ export class AutomationService {
     }
   }
 
-  async getExecutionConfig() {
+  async getExecutionConfig(desktop_id: string, desktop_name: string) {
     try {
-      const config = await this.sessionsExecutionConfigModel.find();
+      const config = await this.sessionsExecutionConfigModel.findOne({
+        desktop_id,
+      });
 
-      if (config.length === 0) {
+      if (!config) {
         const _config = await this.sessionsExecutionConfigModel.create({
           last_execution_id:
             (await this.sessionsService.getInitialExecutionId()) - 1,
           last_execution_date: new Date(),
           execution_interval: 10,
           executions_per_interval: 10,
+          desktop_id,
+          desktop_name,
         });
 
         return _config;
@@ -558,7 +562,8 @@ export class AutomationService {
   }
 
   async executeWarmUpForSessions() {
-    const config = await this.getExecutionConfig();
+    const config = await this.getExecutionConfig('1', 'Desktop 1');
+
     let sessions =
       await this.sessionsService.findAllWhereExecutionIdIsGreaterThan(
         config.last_execution_id,
@@ -622,13 +627,16 @@ export class AutomationService {
   }
 
   async executeWarmUpForSessionsForActiveDesktop(profile_name: string) {
-    const config = await this.getExecutionConfig();
-
     const desktop = await this.sessionsService.getSelectedDesktop(profile_name);
 
     if (!desktop) {
       return;
     }
+
+    const config = await this.getExecutionConfig(
+      desktop.desktop_id,
+      desktop.desktop_name,
+    );
 
     let sessions = await this.sessionsService.findSessionsForCurrentExecution(
       config.last_execution_id,
@@ -685,10 +693,4 @@ export class AutomationService {
       last_execution_date: new Date(),
     });
   }
-
-  // start 5 sessions every 30 minutes
-  // @Cron('0 */35 * * * *')
-  // async handleCron() {
-  //   this.startSessions(3);
-  // }
 }

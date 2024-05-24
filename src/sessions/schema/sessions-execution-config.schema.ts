@@ -19,6 +19,12 @@ export class SessionsExecutionConfig extends mongoose.Document {
 
   @Prop({ required: false, default: 10 })
   executions_per_interval: number;
+
+  @Prop({ required: true, unique: true })
+  desktop_id: number;
+
+  @Prop({ required: true })
+  desktop_name: string;
 }
 
 export const SessionsExecutionConfigSchema = SchemaFactory.createForClass(
