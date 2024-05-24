@@ -20,7 +20,7 @@ export class HttpExceptionFilter<T extends HttpException>
       status === 429
         ? {
             message:
-              'Threshold limit exceeded, Too many requests Please try again  after some time',
+              'Threshold limit exceeded, Too many requests Please try again  after 2 minutes.',
           }
         : typeof response === 'string'
           ? { message: exceptionResponse }
