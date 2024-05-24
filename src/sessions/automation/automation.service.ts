@@ -3,7 +3,7 @@ import * as puppeteer from 'puppeteer';
 
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { chunk, filter, isArray, last, omit, reduce, toNumber } from 'lodash';
+import { chunk, filter, isArray, omit, reduce, toNumber } from 'lodash';
 
 import { HttpService } from '@nestjs/axios';
 import { Logger } from '@nestjs/common';
@@ -125,18 +125,21 @@ export class AutomationService {
 
   async getRunningSessions() {
     try {
-      const response = await this.httpService.axiosRef.get(
-        `${LINKEN_SHPERE_URL}`,
-        {
-          data: {
-            status: 'running',
-          },
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+      const data = JSON.stringify({
+        status: 'running',
+      });
 
+      const config = {
+        method: 'get',
+        maxBodyLength: Infinity,
+        url: 'http://127.0.0.1:40080/sessions',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        data: data,
+      };
+
+      const response = await this.httpService.axiosRef.request(config);
       const sessions = response?.data as SphereApiSession[];
 
       return sessions;
