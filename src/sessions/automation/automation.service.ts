@@ -180,6 +180,19 @@ export class AutomationService {
 
       const session_chunks = chunk(__sessions__, 10);
 
+      const sessions_in_db = await this.sessionsService.findManyByDesktopId(
+        activeDesktop?.uuid,
+      );
+
+      const sessions_to_delete = filter(sessions_in_db, (session) => {
+        return !__sessions__.find((s) => s.uuid === session.session_id);
+      });
+
+      if (sessions_to_delete.length > 0) {
+        const _ids = sessions_to_delete.map((s) => s.id);
+        await this.sessionsService.deleteMany(_ids);
+      }
+
       for (let k = 0; k < session_chunks?.length; k++) {
         const sessions = session_chunks[k];
 
