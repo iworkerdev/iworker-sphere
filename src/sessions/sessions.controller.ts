@@ -6,20 +6,26 @@ import {
   Patch,
   Post,
   Delete,
+  NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   CreateSphereSessionDto,
   UpdateSphereSessionDto,
 } from './dto/sphere-session.dto';
 
+import { EVENTS, ProfileWarmUpEvent } from './automation/events-config';
+
 import { SessionsService } from './sessions.service';
 import { AutomationService } from './automation/automation.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Controller('sessions')
 export class SessionsController {
   constructor(
     private readonly sessionsService: SessionsService,
     private readonly automationService: AutomationService,
+    private eventEmitter: EventEmitter2,
   ) {}
 
   @Get()
@@ -63,12 +69,13 @@ export class SessionsController {
   }
 
   @Get('automation/sync-sessions')
-  syncSessions() {
-    this.automationService.syncSessions();
+  async syncSessions() {
+    const response = await this.automationService.syncSessions();
     return {
       event: 'sync-sessions',
       received: true,
       timestamp: new Date().toISOString(),
+      response,
     };
   }
 
@@ -80,6 +87,45 @@ export class SessionsController {
       received: true,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  @Post('automation/trigger-warm-up-execution')
+  async triggerWarmUpExecutionForActiveDesktop(
+    @Body('profile_name') profile_name: string,
+  ) {
+    if (!profile_name) {
+      throw new BadRequestException({
+        message: `Profile name is required to trigger warm up execution. Please provide a valid profile name.`,
+      });
+    }
+
+    const desktop = await this.sessionsService.getSelectedDesktop(profile_name);
+
+    if (!desktop) {
+      const allDesktops = await this.sessionsService.getAllDesktops();
+      throw new NotFoundException({
+        message: `Profile ${profile_name} not found in the available Profiles.  Please select a valid profile name.`,
+        hint: 'Profile names are case sensitive!!',
+        available_desktops: allDesktops,
+      });
+    } else {
+      await this.automationService.changeActiveDesktop(
+        desktop.desktop_id as string,
+      );
+
+      await this.automationService.syncSessions();
+
+      const event = new ProfileWarmUpEvent({ profile_name });
+      this.eventEmitter.emit(EVENTS.PROFILE_WARM_UP, event);
+
+      return {
+        event: 'trigger-warm-up-execution',
+        profile_name,
+        received: true,
+        message:
+          'Warm up execution triggered for active desktop this will take some time to complete.',
+      };
+    }
   }
 
   @Get('session/:id')

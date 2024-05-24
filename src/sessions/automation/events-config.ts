@@ -1,9 +1,10 @@
 import { SphereSession } from '../schema';
 
 export const EVENTS = {
-  WARM_UP_PROFILE: 'profile.warmup',
+  WARM_UP_SESSIONS: 'sessions.warmup',
   START_SESSION: 'session.start',
   STOP_SESSION: 'session.stop',
+  PROFILE_WARM_UP: 'profile.warmup',
 };
 
 export class WarmUpProfileEvent {
@@ -43,6 +44,17 @@ export class StopSessionEvent {
   constructor(public session: { session_id: string }) {
     this.payload = {
       session_id: session.session_id,
+    };
+  }
+}
+
+export class ProfileWarmUpEvent {
+  public readonly payload: {
+    profile_name: string;
+  };
+  constructor(public event: { profile_name: string }) {
+    this.payload = {
+      profile_name: event.profile_name,
     };
   }
 }

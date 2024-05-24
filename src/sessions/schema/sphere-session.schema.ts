@@ -8,17 +8,29 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
   collection: 'sphere_sessions',
 })
 export class SphereSession extends mongoose.Document {
+  @Prop({ required: true })
+  team_name: string;
+
+  @Prop({ required: true })
+  name: string;
+
   @Prop({ required: true, unique: true })
   session_id: string;
+
+  @Prop({ require: true })
+  desktop_id: string;
+
+  @Prop({ required: true })
+  desktop_name: string;
 
   @Prop({ required: true, unique: true })
   session_execution_id: number;
 
   @Prop({ required: true })
-  user_id: string;
+  session_execution_batch_id: number;
 
   @Prop({ required: true })
-  name: string;
+  user_id: string;
 
   @Prop({ required: false, default: true })
   headless?: boolean;

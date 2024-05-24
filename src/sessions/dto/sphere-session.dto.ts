@@ -9,19 +9,34 @@ import {
 
 export class CreateSphereSessionDto {
   @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  name: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  team_name: string;
+
+  @ApiProperty()
   @IsNotEmpty()
   @IsString()
   session_id: string;
 
   @ApiProperty()
+  @IsNotEmpty()
   @IsString()
-  @IsOptional()
-  user_id?: string;
+  desktop_id: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  desktop_name: string;
 
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
-  name: string;
+  @IsOptional()
+  user_id?: string;
 
   @ApiProperty()
   @IsOptional()
@@ -52,6 +67,10 @@ export class CreateSphereSessionDto {
   @IsOptional()
   @IsNumber()
   session_execution_id?: number;
+
+  @ApiProperty()
+  @IsNumber()
+  session_execution_batch_id?: number;
 }
 
 export class UpdateSphereSessionDto extends PartialType(

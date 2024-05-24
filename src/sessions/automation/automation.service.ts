@@ -3,7 +3,7 @@ import * as puppeteer from 'puppeteer';
 
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { isArray, reduce, toNumber } from 'lodash';
+import { chunk, filter, isArray, omit, reduce, toNumber } from 'lodash';
 
 import { HttpService } from '@nestjs/axios';
 import { Logger } from '@nestjs/common';
@@ -13,9 +13,12 @@ import { WebSearchTopics } from 'src/constants';
 import { uniqBy } from 'lodash';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { EVENTS, StopSessionEvent, WarmUpProfileEvent } from './events-config';
-
-// import { Cron } from '@nestjs/schedule';
+import {
+  EVENTS,
+  ProfileWarmUpEvent,
+  StopSessionEvent,
+  WarmUpProfileEvent,
+} from './events-config';
 
 const LINKEN_SHPERE_URL = 'http://127.0.0.1:40080/sessions';
 
@@ -73,8 +76,87 @@ export class AutomationService {
     this.logger.log(data, `Event: ${event}`);
   }
 
+  async getDesktops() {
+    try {
+      const desktops = await this.httpService.axiosRef.get(
+        `http://localhost:40080/desktops`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      const desktopsData = desktops?.data;
+
+      return desktopsData;
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async changeActiveDesktop(desktopId: string) {
+    try {
+      await this.httpService.axiosRef.post(`http://localhost:40080/desktops`, {
+        uuid: desktopId,
+      });
+
+      return this.getActiveDesktop();
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
+  }
+
+  async getActiveDesktop() {
+    type Desktop = {
+      uuid: string;
+      name: string;
+      team_name: string;
+      is_active: boolean;
+    };
+
+    const desktopsData = (await this.getDesktops()) as Desktop[];
+
+    const activeDesktop = filter(desktopsData, (desktop) => desktop?.is_active);
+
+    return activeDesktop?.length > 0 ? activeDesktop?.[0] : null;
+  }
+
+  async getRunningSessions() {
+    try {
+      const response = await this.httpService.axiosRef.get(
+        `${LINKEN_SHPERE_URL}`,
+        {
+          data: {
+            status: 'running',
+          },
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      const sessions = response?.data as SphereApiSession[];
+
+      return sessions;
+    } catch (error) {
+      console.error({
+        message: 'Error fetching sessions' + error?.message,
+        error: error.response?.data,
+      });
+      return [];
+    }
+  }
+
   async syncSessions() {
     try {
+      const activeDesktop = await this.getActiveDesktop();
+
+      if (!activeDesktop) {
+        console.error('No active desktop found');
+      }
+
       const response = await this.httpService.axiosRef.get(
         `${LINKEN_SHPERE_URL}`,
         {
@@ -84,75 +166,78 @@ export class AutomationService {
         },
       );
 
-      const sessions = response?.data as SphereApiSession[];
+      const results = [];
 
-      if (isArray(sessions) && sessions.length > 0) {
-        for (let i = 0; i < sessions.length; i++) {
-          const session = sessions[i];
+      const session_execution_batch_id =
+        await this.sessionsService.getHighestExecutionBatchIdForDesktop(
+          activeDesktop?.uuid,
+        );
 
-          try {
-            const payload = {
-              session_id: session.uuid,
-              name: session.name,
-              status: session.status === 'stopped' ? 'IDLE' : 'ACTIVE',
-            };
+      const __sessions__ = response?.data as SphereApiSession[];
 
-            let existingSession = null;
+      const session_chunks = chunk(__sessions__, 10);
+
+      for (let k = 0; k < session_chunks?.length; k++) {
+        const sessions = session_chunks[k];
+
+        const batchId = session_execution_batch_id + k;
+
+        if (isArray(sessions) && sessions.length > 0) {
+          for (let i = 0; i < sessions.length; i++) {
+            const session = sessions[i];
 
             try {
-              existingSession = await this.sessionsService.findOneBySessionId(
-                session.uuid,
-              );
-            } catch (error) {}
+              const payload = {
+                session_id: session.uuid,
+                name: session.name,
+                status: session.status === 'stopped' ? 'IDLE' : 'ACTIVE',
+                team_name: activeDesktop?.team_name || 'Unknown',
+                desktop_id: activeDesktop?.uuid || 'Unknown',
+                desktop_name: activeDesktop?.name || 'Unknown',
+                session_execution_batch_id: batchId,
+              };
 
-            if (existingSession) {
-              await this.sessionsService.updateOne(existingSession.id, payload);
-            } else {
-              const debug_port = await this.sessionsService.getNextDebugPort();
-              await this.sessionsService.createOne({
-                ...payload,
-                debug_port: `${debug_port}`,
+              let existingSession = null;
+
+              try {
+                existingSession = await this.sessionsService.findOneBySessionId(
+                  session.uuid,
+                );
+              } catch (error) {}
+
+              if (existingSession) {
+                const s_updated = await this.sessionsService.updateOne(
+                  existingSession.id,
+                  omit(payload, ['session_execution_batch_id']),
+                );
+                results.push(s_updated);
+              } else {
+                const debug_port =
+                  await this.sessionsService.getNextDebugPort();
+                const s_new = await this.sessionsService.createOne({
+                  ...payload,
+                  debug_port: `${debug_port}`,
+                });
+                results.push(s_new);
+              }
+            } catch (error) {
+              console.error(error);
+              console.error({
+                message: 'Error syncing session',
+                session,
+                error: error.response?.data,
               });
             }
-          } catch (error) {
-            console.error(error);
-            console.error({
-              message: 'Error syncing session',
-              session,
-              error: error.response?.data,
-            });
           }
         }
       }
+
+      return results;
     } catch (error) {
       console.error({
         message: 'Error fetching sessions' + error?.message,
         error: error.response?.data,
       });
-    }
-  }
-
-  async createAndSaveLinkenSphereSession() {
-    const debugPort = await this.sessionsService.getNextDebugPort();
-
-    try {
-      const response = await this.httpService.axiosRef.post(
-        `${LINKEN_SHPERE_URL}/create_quick`,
-      );
-
-      const data = response?.data?.[0];
-      const session = await this.sessionsService.createOne({
-        session_id: data.uuid,
-        name: data.name,
-        debug_port: `${debugPort}`,
-      });
-
-      this.logEvent('CREATE_SESSION', session);
-
-      return session;
-    } catch (error) {
-      console.error(error);
-      return null;
     }
   }
 
@@ -195,6 +280,11 @@ export class AutomationService {
     const { session_id } = event.payload;
     try {
       const session = await this.sessionsService.findOneBySessionId(session_id);
+      const activeDesktop = await this.getActiveDesktop();
+      const highestExecutionId =
+        await this.sessionsService.getHighestExecutionIdForDesktop(
+          activeDesktop?.uuid,
+        );
 
       const response = await this.httpService.axiosRef.post(
         `${LINKEN_SHPERE_URL}/stop`,
@@ -213,17 +303,48 @@ export class AutomationService {
           session_id: session.session_id,
           status: _s.status,
         });
+
+        const runningSessions = await this.getRunningSessions();
+
+        const highestExecutionIdInExecutionBatch =
+          await this.sessionsService.getHighestExecutionIdInExecutionBatch(
+            session?.session_execution_batch_id,
+            session?.desktop_id,
+          );
+
+        const canStartNewWarmUpBatch =
+          highestExecutionIdInExecutionBatch === highestExecutionId &&
+          runningSessions.length === 0 &&
+          session?.session_execution_id !== highestExecutionId;
+
+        if (
+          canStartNewWarmUpBatch &&
+          session?.desktop_id === activeDesktop?.uuid
+        ) {
+          const e = new ProfileWarmUpEvent({
+            profile_name: activeDesktop?.name,
+          });
+          this.eventEmitter.emit(EVENTS.PROFILE_WARM_UP, e);
+        }
       }
     } catch (error) {
       throw new NotFoundException(error?.response?.data?.message);
     }
   }
 
-  async createSessions(count = 5) {
-    for (let i = 0; i < count; i++) {
-      await this.createAndSaveLinkenSphereSession();
+  async createSessions(_count = 10) {
+    try {
+      await this.httpService.axiosRef.post(
+        `${LINKEN_SHPERE_URL}/create_quick`,
+        {
+          count: _count < 10 ? 10 : 10,
+        },
+      );
+
+      return await this.syncSessions();
+    } catch (error) {
+      console.error(error);
     }
-    this.logEvent('CREATE_SESSIONS', { count });
   }
 
   async startSessions(count = 5) {
@@ -310,10 +431,10 @@ export class AutomationService {
       domain: extractSecondDomain([link])[0],
     }));
 
-    return uniqBy(domains, 'domain')?.slice(0, 10);
+    return uniqBy(domains, 'domain')?.slice(0, 5);
   }
 
-  @OnEvent(EVENTS.WARM_UP_PROFILE)
+  @OnEvent(EVENTS.WARM_UP_SESSIONS)
   async warmUpSession(event: WarmUpProfileEvent) {
     const { session_id, debug_port, last_topic_of_search, _id } = event.payload;
     try {
@@ -451,7 +572,78 @@ export class AutomationService {
       try {
         const _s = await this.startLinkenSphereSession(session.id);
         const event = new WarmUpProfileEvent(_s);
-        this.eventEmitter.emit(EVENTS.WARM_UP_PROFILE, event);
+        this.eventEmitter.emit(EVENTS.WARM_UP_SESSIONS, event);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    await this.sessionsExecutionConfigModel.findByIdAndUpdate(config.id, {
+      last_execution_id: lastSessionExecutionId,
+      last_execution_date: new Date(),
+    });
+  }
+
+  @OnEvent(EVENTS.PROFILE_WARM_UP)
+  async handleProfileWarmUpEvent(event: ProfileWarmUpEvent) {
+    const { profile_name } = event.payload;
+    await this.executeWarmUpForSessionsForActiveDesktop(profile_name);
+  }
+
+  async executeWarmUpForSessionsForActiveDesktop(profile_name: string) {
+    const config = await this.getExecutionConfig();
+
+    const desktop = await this.sessionsService.getSelectedDesktop(profile_name);
+
+    if (!desktop) {
+      return;
+    }
+
+    let sessions = await this.sessionsService.findSessionsForCurrentExecution(
+      config.last_execution_id,
+      profile_name,
+    );
+
+    let startExecutionId = config.last_execution_id;
+
+    if (sessions.length === 0) {
+      //reset the last execution id
+
+      startExecutionId =
+        (await this.sessionsService.getInitialExecutionId()) - 1;
+
+      const updatedConfig =
+        await this.sessionsExecutionConfigModel.findByIdAndUpdate(
+          config.id,
+          {
+            last_execution_id: startExecutionId,
+            last_execution_date: new Date(),
+          },
+          { new: true },
+        );
+
+      sessions = await this.sessionsService.findSessionsForCurrentExecution(
+        updatedConfig.last_execution_id,
+        profile_name,
+      );
+    }
+
+    const sessionToWarmUp = sessions.slice(0, config.executions_per_interval);
+
+    const lastSessionExecutionId =
+      sessionToWarmUp[sessionToWarmUp.length - 1]?.session_execution_id;
+
+    console.log({
+      startExecutionId,
+      lastSessionExecutionId,
+    });
+
+    for (let i = 0; i < sessionToWarmUp.length; i++) {
+      const session = sessionToWarmUp[i];
+      try {
+        const _s = await this.startLinkenSphereSession(session.id);
+        const event = new WarmUpProfileEvent(_s);
+        this.eventEmitter.emit(EVENTS.WARM_UP_SESSIONS, event);
       } catch (error) {
         console.error(error);
       }

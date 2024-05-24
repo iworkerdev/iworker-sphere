@@ -149,6 +149,26 @@ export class SessionsService {
     }
   }
 
+  async getHighestExecutionIdForDesktop(desktop_id: string) {
+    try {
+      const sessions = await this.sphereSessionModel.find({
+        user_id: this.configService.get('USER_ID'),
+        desktop_id: desktop_id,
+      });
+
+      if (sessions.length === 0) {
+        return 1541;
+      }
+
+      const sessionExecutionIds = sessions.map((session) =>
+        toNumber(session.session_execution_id),
+      );
+      return Math.max(...sessionExecutionIds);
+    } catch (error) {
+      return HandleCatchException(error);
+    }
+  }
+
   async getInitialExecutionId() {
     try {
       const sessions = await this.sphereSessionModel.find({
@@ -168,11 +188,105 @@ export class SessionsService {
     }
   }
 
+  async getHighestExecutionBatchIdForDesktop(desktopId: string) {
+    try {
+      const sessions = await this.sphereSessionModel.find({
+        user_id: this.configService.get('USER_ID'),
+        desktop_id: desktopId,
+      });
+
+      if (sessions.length === 0) {
+        return 1;
+      }
+
+      const sessionExecutionBatchIds = sessions.map((session) =>
+        toNumber(session.session_execution_batch_id),
+      );
+      return Math.max(...sessionExecutionBatchIds);
+    } catch (error) {
+      return HandleCatchException(error);
+    }
+  }
+
+  async getHighestExecutionIdInExecutionBatch(
+    executionBatchId: number,
+    desktopId: string,
+  ) {
+    try {
+      const sessions = await this.sphereSessionModel.find({
+        user_id: this.configService.get('USER_ID'),
+        session_execution_batch_id: executionBatchId,
+        desktop_id: desktopId,
+      });
+
+      if (sessions.length === 0) {
+        return 1541;
+      }
+
+      const sessionExecutionIds = sessions.map((session) =>
+        toNumber(session.session_execution_id),
+      );
+      return Math.max(...sessionExecutionIds);
+    } catch (error) {
+      return HandleCatchException(error);
+    }
+  }
+
   async findAllWhereExecutionIdIsGreaterThan(executionId: number) {
     try {
       const sessions = await this.sphereSessionModel.find({
         user_id: this.configService.get('USER_ID'),
         session_execution_id: { $gt: executionId },
+      });
+      return sessions;
+    } catch (error) {
+      return HandleCatchException(error);
+    }
+  }
+
+  async getAllDesktops() {
+    try {
+      const desktops = await this.sphereSessionModel
+        .find({
+          user_id: this.configService.get('USER_ID'),
+        })
+        .distinct('desktop_name');
+      return desktops;
+    } catch (error) {
+      return HandleCatchException(error);
+    }
+  }
+
+  async getSelectedDesktop(profile_name: string) {
+    try {
+      const desktop = await this.sphereSessionModel.findOne({
+        user_id: this.configService.get('USER_ID'),
+        desktop_name: profile_name,
+      });
+
+      if (!desktop) {
+        return null;
+      }
+
+      return {
+        desktop_name: desktop?.desktop_name,
+        desktop_id: desktop?.desktop_id,
+        team_name: desktop?.team_name,
+      };
+    } catch (error) {
+      return HandleCatchException(error);
+    }
+  }
+
+  async findSessionsForCurrentExecution(
+    executionId: number,
+    desktop_name: string,
+  ) {
+    try {
+      const sessions = await this.sphereSessionModel.find({
+        user_id: this.configService.get('USER_ID'),
+        session_execution_id: { $gt: executionId },
+        desktop_name: desktop_name,
       });
       return sessions;
     } catch (error) {
