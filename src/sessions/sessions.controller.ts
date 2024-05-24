@@ -109,6 +109,15 @@ export class SessionsController {
         available_desktops: allDesktops,
       });
     } else {
+      const activeSessions = await this.automationService.getRunningSessions();
+
+      if (activeSessions.length > 0) {
+        throw new BadRequestException({
+          message: `There are active sessions running for the profile ${profile_name}. Please wait for the active sessions to complete before triggering warm up execution.`,
+          active_sessions: activeSessions,
+        });
+      }
+
       await this.automationService.changeActiveDesktop(
         desktop.desktop_id as string,
       );
