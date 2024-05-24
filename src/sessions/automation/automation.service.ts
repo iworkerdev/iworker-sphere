@@ -47,6 +47,13 @@ type SphereApiSession = {
   status: string;
 };
 
+type Desktop = {
+  uuid: string;
+  name: string;
+  team_name: string;
+  is_active: boolean;
+};
+
 @Injectable()
 export class AutomationService {
   constructor(
@@ -76,7 +83,7 @@ export class AutomationService {
     this.logger.log(data, `Event: ${event}`);
   }
 
-  async getDesktops() {
+  async getDesktops(): Promise<Desktop[]> {
     try {
       const desktops = await this.httpService.axiosRef.get(
         `http://localhost:40080/desktops`,
@@ -87,7 +94,7 @@ export class AutomationService {
         },
       );
 
-      const desktopsData = desktops?.data;
+      const desktopsData = desktops?.data as Desktop[];
 
       return desktopsData;
     } catch (error) {
@@ -109,13 +116,6 @@ export class AutomationService {
   }
 
   async getActiveDesktop() {
-    type Desktop = {
-      uuid: string;
-      name: string;
-      team_name: string;
-      is_active: boolean;
-    };
-
     const desktopsData = (await this.getDesktops()) as Desktop[];
 
     const activeDesktop = filter(desktopsData, (desktop) => desktop?.is_active);

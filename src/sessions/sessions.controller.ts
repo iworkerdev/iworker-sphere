@@ -19,6 +19,7 @@ import { EVENTS, ProfileWarmUpEvent } from './automation/events-config';
 import { SessionsService } from './sessions.service';
 import { AutomationService } from './automation/automation.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { find, map } from 'lodash';
 
 @Controller('sessions')
 export class SessionsController {
@@ -99,14 +100,14 @@ export class SessionsController {
       });
     }
 
-    const desktop = await this.sessionsService.getSelectedDesktop(profile_name);
+    const desktops = await this.automationService.getDesktops();
+    const selectedDesktop = find(desktops, { name: profile_name });
 
-    if (!desktop) {
-      const allDesktops = await this.sessionsService.getAllDesktops();
+    if (!selectedDesktop) {
       throw new NotFoundException({
         message: `Profile ${profile_name} not found in the available Profiles.  Please select a valid profile name.`,
         hint: 'Profile names are case sensitive!!',
-        available_desktops: allDesktops,
+        available_desktops: map(desktops, 'name'),
       });
     } else {
       const activeSessions = await this.automationService.getRunningSessions();
@@ -118,9 +119,7 @@ export class SessionsController {
         });
       }
 
-      await this.automationService.changeActiveDesktop(
-        desktop.desktop_id as string,
-      );
+      await this.automationService.changeActiveDesktop(selectedDesktop.uuid);
 
       await this.automationService.syncSessions();
 
