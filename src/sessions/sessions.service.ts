@@ -115,6 +115,18 @@ export class SessionsService {
     }
   }
 
+  async findManyByDesktopId(desktopId: string) {
+    try {
+      const sessions = await this.sphereSessionModel.find({
+        user_id: this.configService.get('USER_ID'),
+        desktop_id: desktopId,
+      });
+      return sessions;
+    } catch (error) {
+      return HandleCatchException(error);
+    }
+  }
+
   async findManyActiveByUserId(count?: number) {
     try {
       let sessions = [];
@@ -363,6 +375,22 @@ export class SessionsService {
       }
 
       return { id: deletedSession._id, message: 'Session deleted' };
+    } catch (error) {
+      return HandleCatchException(error);
+    }
+  }
+
+  async deleteMany(ids: string[]) {
+    try {
+      const deletedSessions = await this.sphereSessionModel.deleteMany({
+        _id: { $in: ids },
+      });
+
+      if (deletedSessions.deletedCount === 0) {
+        throw new NotFoundException('Sessions not found');
+      }
+
+      return { ids, message: 'Sessions deleted' };
     } catch (error) {
       return HandleCatchException(error);
     }
