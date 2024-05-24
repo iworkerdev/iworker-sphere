@@ -110,12 +110,17 @@ export class SessionsController {
         available_desktops: map(desktops, (d) => `${d.name} (${d.team_name})`),
       });
     } else {
-      const activeSessions = await this.automationService.getRunningSessions();
+      const sphereRunningSessions =
+        await this.automationService.getRunningSessions();
+      const activeSessions =
+        await this.sessionsService.findManyActiveByDesktopId(
+          selectedDesktop.uuid,
+        );
 
-      if (activeSessions.length > 0) {
+      if (sphereRunningSessions.length > 0 || activeSessions.length > 0) {
         throw new BadRequestException({
           message: `There are active sessions running for the profile ${profile_name}. Please wait for the active sessions to complete before triggering warm up execution.`,
-          active_sessions: activeSessions,
+          active_sessions: sphereRunningSessions,
         });
       }
 

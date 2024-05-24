@@ -322,16 +322,15 @@ export class AutomationService {
           highestExecutionIdInExecutionBatch >= highestExecutionId;
 
         if (!isLastSession && activeSessions.length === 0) {
+          const e = new ProfileWarmUpEvent({
+            profile_name: activeDesktop?.name,
+          });
+          this.eventEmitter.emit(EVENTS.PROFILE_WARM_UP, e);
           console.log({
             message: `Starting sessions for desktop ${activeDesktop?.name} New Execution Batch ${session?.session_execution_batch_id + 1}`,
             highestExecutionId,
             highestExecutionIdInExecutionBatch,
           });
-
-          const e = new ProfileWarmUpEvent({
-            profile_name: activeDesktop?.name,
-          });
-          this.eventEmitter.emit(EVENTS.PROFILE_WARM_UP, e);
         } else {
           console.log({
             message: `End Of Warmup for profile ${activeDesktop?.name}`,
