@@ -20,7 +20,7 @@ import { SessionsModule } from './sessions/sessions.module';
     HttpModule,
     ThrottlerModule.forRoot([
       {
-        ttl: 60000,
+        ttl: 90000,
         limit: 1,
       },
     ]),
