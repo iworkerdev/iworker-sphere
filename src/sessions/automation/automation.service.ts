@@ -19,6 +19,7 @@ import {
   StopSessionEvent,
   WarmUpProfileEvent,
 } from './events-config';
+import { __delay__ } from 'src/utils';
 
 const LINKEN_SHPERE_URL = 'http://127.0.0.1:40080/sessions';
 
@@ -472,7 +473,8 @@ export class AutomationService {
 
   @OnEvent(EVENTS.WARM_UP_SESSIONS)
   async warmUpSession(event: WarmUpProfileEvent) {
-    const { session_id, debug_port, last_topic_of_search, _id } = event.payload;
+    const { session_id, debug_port, last_topic_of_search, mongo_id } =
+      event.payload;
     try {
       const currentTopics = await this.sessionsService.getLastTopicsOfSearch();
       const allTopics = reduce(
@@ -506,12 +508,12 @@ export class AutomationService {
 
       for (let i = 0; i < linksToVisit.length; i++) {
         const link = linksToVisit[i];
+        await __delay__(1000);
         try {
           await page.goto(link.url, {
             waitUntil: 'load',
             timeout: 90000,
           });
-
           this.logger.log(`WEBPAGE VISITED: ${link.domain}`);
         } catch (e) {
           console.error({
@@ -520,13 +522,12 @@ export class AutomationService {
             link,
           });
         }
-        //delay for 2 seconds
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await __delay__(2000);
       }
 
       const endTimes = new Date().getTime();
 
-      await this.sessionsService.updateOne(_id, {
+      await this.sessionsService.updateOne(mongo_id, {
         last_topic_of_search: topic,
         last_activity: new Date(),
       });
