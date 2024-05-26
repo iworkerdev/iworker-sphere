@@ -292,7 +292,10 @@ export class AutomationService {
       }
       return session;
     } catch (error) {
-      console.error(error);
+      console.error({
+        message: `Error starting session ${_id} - ${error?.message}`,
+        error: error?.response?.data || error?.message,
+      });
       return null;
     }
   }
@@ -637,9 +640,14 @@ export class AutomationService {
         const session = sessionToWarmUp[i];
         try {
           if (session.id) {
-            const _s = await this.startLinkenSphereSession(session.id);
-            const event = new WarmUpProfileEvent(_s);
-            this.eventEmitter.emit(EVENTS.WARM_UP_SESSIONS, event);
+            const startedSessionInstance = await this.startLinkenSphereSession(
+              session.id,
+            );
+
+            if (startedSessionInstance) {
+              const event = new WarmUpProfileEvent(session);
+              this.eventEmitter.emit(EVENTS.WARM_UP_SESSIONS, event);
+            }
           }
         } catch (error) {
           console.error(error);
