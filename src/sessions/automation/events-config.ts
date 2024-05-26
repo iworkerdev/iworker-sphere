@@ -12,14 +12,17 @@ export class WarmUpProfileEvent {
     session_id: string;
     debug_port: string;
     last_topic_of_search: string;
-    _id: string;
+    mongo_id: string;
   };
   constructor(public session: SphereSession) {
+    console.log(
+      `session: mongo_id=${session?.id}_session_uuid=${session?.session_id}_debug_port_${session?.debug_port}_last_topic_of_search_${session?.last_topic_of_search}_name_${session?.name}`,
+    );
     this.payload = {
-      _id: session.id,
-      session_id: session.session_id,
-      debug_port: session.debug_port,
-      last_topic_of_search: session.last_topic_of_search,
+      mongo_id: session?.id,
+      session_id: session?.session_id,
+      debug_port: session?.debug_port,
+      last_topic_of_search: session?.last_topic_of_search,
     };
   }
 }
