@@ -514,7 +514,11 @@ export class AutomationService {
 
           this.logger.log(`WEBPAGE VISITED: ${link.domain}`);
         } catch (e) {
-          console.error(e);
+          console.error({
+            message: 'Error visiting webpage',
+            error: e?.response?.data || e?.message,
+            link,
+          });
         }
         //delay for 2 seconds
         await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -533,8 +537,8 @@ export class AutomationService {
         `WARM_UP_SESSION_COMPLETED: topic=${topic} - session_id=${session_id} - no_of_links=${linksToVisit.length} - timeTaken=${(endTimes - startTimes) / 1000} seconds`,
       );
     } catch (error) {
-      const stopSessionEvent = new StopSessionEvent({ session_id });
-      this.eventEmitter.emit(EVENTS.STOP_SESSION, stopSessionEvent);
+      // const stopSessionEvent = new StopSessionEvent({ session_id });
+      // this.eventEmitter.emit(EVENTS.STOP_SESSION, stopSessionEvent);
       console.error(error);
     }
   }
@@ -558,7 +562,7 @@ export class AutomationService {
 
         return _config;
       } else {
-        return config?.[0];
+        return config;
       }
     } catch (error) {
       console.error(error);
@@ -574,71 +578,79 @@ export class AutomationService {
   }
 
   async executeWarmUpForSessionsForActiveDesktop(profile_name: string) {
-    const desktop = await this.sessionsService.getSelectedDesktop(profile_name);
+    try {
+      const desktop =
+        await this.sessionsService.getSelectedDesktop(profile_name);
 
-    if (!desktop) {
-      return;
-    }
+      if (!desktop) {
+        return;
+      }
 
-    const config = await this.getExecutionConfig(
-      desktop.desktop_id,
-      desktop.desktop_name,
-    );
+      const config = await this.getExecutionConfig(
+        desktop.desktop_id,
+        desktop.desktop_name,
+      );
 
-    let sessions = await this.sessionsService.findSessionsForCurrentExecution(
-      config.last_execution_id,
-      desktop.desktop_id,
-    );
-
-    let startExecutionId = config.last_execution_id;
-
-    if (sessions.length === 0) {
-      //reset the last execution id
-
-      startExecutionId =
-        (await this.sessionsService.getInitialExecutionId(desktop.desktop_id)) -
-        1;
-
-      const updatedConfig =
-        await this.sessionsExecutionConfigModel.findByIdAndUpdate(
-          config.id,
-          {
-            last_execution_id: startExecutionId,
-            last_execution_date: new Date(),
-          },
-          { new: true },
-        );
-
-      sessions = await this.sessionsService.findSessionsForCurrentExecution(
-        updatedConfig.last_execution_id,
+      let sessions = await this.sessionsService.findSessionsForCurrentExecution(
+        config.last_execution_id,
         desktop.desktop_id,
       );
-    }
 
-    const sessionToWarmUp = sessions.slice(0, config.executions_per_interval);
+      let startExecutionId = config.last_execution_id;
 
-    const lastSessionExecutionId =
-      sessionToWarmUp[sessionToWarmUp.length - 1]?.session_execution_id;
+      if (sessions.length === 0) {
+        //reset the last execution id
 
-    console.log({
-      startExecutionId,
-      lastSessionExecutionId,
-    });
+        startExecutionId =
+          (await this.sessionsService.getInitialExecutionId(
+            desktop.desktop_id,
+          )) - 1;
 
-    for (let i = 0; i < sessionToWarmUp.length; i++) {
-      const session = sessionToWarmUp[i];
-      try {
-        const _s = await this.startLinkenSphereSession(session.id);
-        const event = new WarmUpProfileEvent(_s);
-        this.eventEmitter.emit(EVENTS.WARM_UP_SESSIONS, event);
-      } catch (error) {
-        console.error(error);
+        const updatedConfig =
+          await this.sessionsExecutionConfigModel.findByIdAndUpdate(
+            config.id,
+            {
+              last_execution_id: startExecutionId,
+              last_execution_date: new Date(),
+            },
+            { new: true },
+          );
+
+        sessions = await this.sessionsService.findSessionsForCurrentExecution(
+          updatedConfig.last_execution_id,
+          desktop.desktop_id,
+        );
       }
-    }
 
-    await this.sessionsExecutionConfigModel.findByIdAndUpdate(config.id, {
-      last_execution_id: lastSessionExecutionId,
-      last_execution_date: new Date(),
-    });
+      const sessionToWarmUp = sessions.slice(0, config.executions_per_interval);
+
+      const lastSessionExecutionId =
+        sessionToWarmUp[sessionToWarmUp.length - 1]?.session_execution_id;
+
+      console.log({
+        startExecutionId,
+        lastSessionExecutionId,
+      });
+
+      for (let i = 0; i < sessionToWarmUp.length; i++) {
+        const session = sessionToWarmUp[i];
+        try {
+          if (session.id) {
+            const _s = await this.startLinkenSphereSession(session.id);
+            const event = new WarmUpProfileEvent(_s);
+            this.eventEmitter.emit(EVENTS.WARM_UP_SESSIONS, event);
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      await this.sessionsExecutionConfigModel.findByIdAndUpdate(config.id, {
+        last_execution_id: lastSessionExecutionId,
+        last_execution_date: new Date(),
+      });
+    } catch (error) {
+      console.log(error);
+    }
   }
 }
