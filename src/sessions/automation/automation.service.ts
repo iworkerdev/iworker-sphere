@@ -325,6 +325,7 @@ export class AutomationService {
         });
         this.logEvent('STOP_SESSION', {
           session_id: session.session_id,
+          session_execution_id: session.session_execution_id,
           status: _s.status,
         });
 
@@ -355,12 +356,6 @@ export class AutomationService {
         } else if (isLastSession) {
           console.log({
             message: `End Of Warmup for profile ${activeDesktop?.name}`,
-            highestExecutionId,
-            highestExecutionIdInExecutionBatch,
-          });
-        } else {
-          console.log({
-            message: `Active Sessions for desktop ${activeDesktop?.name}`,
             highestExecutionId,
             highestExecutionIdInExecutionBatch,
           });
