@@ -512,7 +512,7 @@ export class AutomationService {
         try {
           await page.goto(link.url, {
             waitUntil: 'load',
-            timeout: 90000,
+            timeout: 30000,
           });
           this.logger.log(`WEBPAGE VISITED: ${link.domain}`);
         } catch (e) {
