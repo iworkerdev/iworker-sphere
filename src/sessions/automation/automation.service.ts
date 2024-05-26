@@ -353,7 +353,7 @@ export class AutomationService {
             highestExecutionId,
             highestExecutionIdInExecutionBatch,
           });
-        } else if (isLastSession) {
+        } else if (isLastSession && activeSessions.length === 0) {
           console.log({
             message: `End Of Warmup for profile ${activeDesktop?.name}`,
             highestExecutionId,
