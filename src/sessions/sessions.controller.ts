@@ -80,16 +80,6 @@ export class SessionsController {
     };
   }
 
-  @Get('automation/trigger-warm-up-execution')
-  triggerWarmUpExecution() {
-    this.automationService.executeWarmUpForSessions();
-    return {
-      event: 'trigger-warm-up-execution',
-      received: true,
-      timestamp: new Date().toISOString(),
-    };
-  }
-
   @Post('automation/trigger-warm-up-execution')
   async triggerWarmUpExecutionForActiveDesktop(
     @Body('profile_name') profile_name: string,
@@ -136,7 +126,6 @@ export class SessionsController {
 
   async triggerInnit(desktopId: string, profile_name: string) {
     await this.automationService.changeActiveDesktop(desktopId);
-    await this.automationService.syncSessions();
     const event = new ProfileWarmUpEvent({ profile_name });
     this.eventEmitter.emit(EVENTS.PROFILE_WARM_UP, event);
   }

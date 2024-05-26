@@ -19,6 +19,7 @@ import {
   StopSessionEvent,
   WarmUpProfileEvent,
 } from './events-config';
+import { __delay__ } from 'src/utils';
 
 const LINKEN_SHPERE_URL = 'http://127.0.0.1:40080/sessions';
 
@@ -248,6 +249,11 @@ export class AutomationService {
         }
       }
 
+      this.logEvent('SYNC_SESSIONS', {
+        count: results.length,
+        desktop: activeDesktop?.name,
+      });
+
       return results;
     } catch (error) {
       console.error({
@@ -268,7 +274,6 @@ export class AutomationService {
       const response = await this.httpService.axiosRef.post(
         `${LINKEN_SHPERE_URL}/start`,
         {
-          _id: session.id,
           uuid: session.session_id,
           headless: false,
           debug_port: toNumber(session.debug_port),
@@ -286,7 +291,10 @@ export class AutomationService {
       }
       return session;
     } catch (error) {
-      console.error(error);
+      console.error({
+        message: `Error starting session ${_id} - ${error?.message}`,
+        error: error?.response?.data || error?.message,
+      });
       return null;
     }
   }
@@ -317,6 +325,7 @@ export class AutomationService {
         });
         this.logEvent('STOP_SESSION', {
           session_id: session.session_id,
+          session_execution_id: session.session_execution_id,
           status: _s.status,
         });
 
@@ -344,15 +353,9 @@ export class AutomationService {
             highestExecutionId,
             highestExecutionIdInExecutionBatch,
           });
-        } else if (isLastSession) {
+        } else if (isLastSession && activeSessions.length === 0) {
           console.log({
             message: `End Of Warmup for profile ${activeDesktop?.name}`,
-            highestExecutionId,
-            highestExecutionIdInExecutionBatch,
-          });
-        } else {
-          console.log({
-            message: `Active Sessions for desktop ${activeDesktop?.name}`,
             highestExecutionId,
             highestExecutionIdInExecutionBatch,
           });
@@ -467,7 +470,8 @@ export class AutomationService {
 
   @OnEvent(EVENTS.WARM_UP_SESSIONS)
   async warmUpSession(event: WarmUpProfileEvent) {
-    const { session_id, debug_port, last_topic_of_search, _id } = event.payload;
+    const { session_id, debug_port, last_topic_of_search, mongo_id } =
+      event.payload;
     try {
       const currentTopics = await this.sessionsService.getLastTopicsOfSearch();
       const allTopics = reduce(
@@ -501,23 +505,26 @@ export class AutomationService {
 
       for (let i = 0; i < linksToVisit.length; i++) {
         const link = linksToVisit[i];
+        await __delay__(1000);
         try {
           await page.goto(link.url, {
             waitUntil: 'load',
-            timeout: 90000,
+            timeout: 30000,
           });
-
           this.logger.log(`WEBPAGE VISITED: ${link.domain}`);
         } catch (e) {
-          console.error(e);
+          console.error({
+            message: 'Error visiting webpage',
+            error: e?.response?.data || e?.message,
+            link,
+          });
         }
-        //delay for 2 seconds
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        await __delay__(2000);
       }
 
       const endTimes = new Date().getTime();
 
-      await this.sessionsService.updateOne(_id, {
+      await this.sessionsService.updateOne(mongo_id, {
         last_topic_of_search: topic,
         last_activity: new Date(),
       });
@@ -528,28 +535,32 @@ export class AutomationService {
         `WARM_UP_SESSION_COMPLETED: topic=${topic} - session_id=${session_id} - no_of_links=${linksToVisit.length} - timeTaken=${(endTimes - startTimes) / 1000} seconds`,
       );
     } catch (error) {
-      const stopSessionEvent = new StopSessionEvent({ session_id });
-      this.eventEmitter.emit(EVENTS.STOP_SESSION, stopSessionEvent);
+      // const stopSessionEvent = new StopSessionEvent({ session_id });
+      // this.eventEmitter.emit(EVENTS.STOP_SESSION, stopSessionEvent);
       console.error(error);
     }
   }
 
-  async getExecutionConfig() {
+  async getExecutionConfig(desktop_id: string, desktop_name: string) {
     try {
-      const config = await this.sessionsExecutionConfigModel.find();
+      const config = await this.sessionsExecutionConfigModel.findOne({
+        desktop_id,
+      });
 
-      if (config.length === 0) {
+      if (!config) {
         const _config = await this.sessionsExecutionConfigModel.create({
           last_execution_id:
-            (await this.sessionsService.getInitialExecutionId()) - 1,
+            (await this.sessionsService.getInitialExecutionId(desktop_id)) - 1,
           last_execution_date: new Date(),
           execution_interval: 10,
           executions_per_interval: 10,
+          desktop_id,
+          desktop_name,
         });
 
         return _config;
       } else {
-        return config?.[0];
+        return config;
       }
     } catch (error) {
       console.error(error);
@@ -557,138 +568,92 @@ export class AutomationService {
     }
   }
 
-  async executeWarmUpForSessions() {
-    const config = await this.getExecutionConfig();
-    let sessions =
-      await this.sessionsService.findAllWhereExecutionIdIsGreaterThan(
-        config.last_execution_id,
-      );
-
-    let startExecutionId = config.last_execution_id;
-
-    if (sessions.length === 0) {
-      //reset the last execution id
-
-      startExecutionId =
-        (await this.sessionsService.getInitialExecutionId()) - 1;
-
-      const updatedConfig =
-        await this.sessionsExecutionConfigModel.findByIdAndUpdate(
-          config.id,
-          {
-            last_execution_id: startExecutionId,
-            last_execution_date: new Date(),
-          },
-          { new: true },
-        );
-
-      sessions =
-        await this.sessionsService.findAllWhereExecutionIdIsGreaterThan(
-          updatedConfig.last_execution_id,
-        );
-    }
-
-    const sessionToWarmUp = sessions.slice(0, config.executions_per_interval);
-
-    const lastSessionExecutionId =
-      sessionToWarmUp[sessionToWarmUp.length - 1]?.session_execution_id;
-
-    console.log({
-      startExecutionId,
-      lastSessionExecutionId,
-    });
-
-    for (let i = 0; i < sessionToWarmUp.length; i++) {
-      const session = sessionToWarmUp[i];
-      try {
-        const _s = await this.startLinkenSphereSession(session.id);
-        const event = new WarmUpProfileEvent(_s);
-        this.eventEmitter.emit(EVENTS.WARM_UP_SESSIONS, event);
-      } catch (error) {
-        console.error(error);
-      }
-    }
-
-    await this.sessionsExecutionConfigModel.findByIdAndUpdate(config.id, {
-      last_execution_id: lastSessionExecutionId,
-      last_execution_date: new Date(),
-    });
-  }
-
   @OnEvent(EVENTS.PROFILE_WARM_UP)
   async handleProfileWarmUpEvent(event: ProfileWarmUpEvent) {
     const { profile_name } = event.payload;
+    await this.syncSessions();
     await this.executeWarmUpForSessionsForActiveDesktop(profile_name);
   }
 
   async executeWarmUpForSessionsForActiveDesktop(profile_name: string) {
-    const config = await this.getExecutionConfig();
+    try {
+      const desktop =
+        await this.sessionsService.getSelectedDesktop(profile_name);
 
-    const desktop = await this.sessionsService.getSelectedDesktop(profile_name);
-
-    if (!desktop) {
-      return;
-    }
-
-    let sessions = await this.sessionsService.findSessionsForCurrentExecution(
-      config.last_execution_id,
-      profile_name,
-    );
-
-    let startExecutionId = config.last_execution_id;
-
-    if (sessions.length === 0) {
-      //reset the last execution id
-
-      startExecutionId =
-        (await this.sessionsService.getInitialExecutionId()) - 1;
-
-      const updatedConfig =
-        await this.sessionsExecutionConfigModel.findByIdAndUpdate(
-          config.id,
-          {
-            last_execution_id: startExecutionId,
-            last_execution_date: new Date(),
-          },
-          { new: true },
-        );
-
-      sessions = await this.sessionsService.findSessionsForCurrentExecution(
-        updatedConfig.last_execution_id,
-        profile_name,
-      );
-    }
-
-    const sessionToWarmUp = sessions.slice(0, config.executions_per_interval);
-
-    const lastSessionExecutionId =
-      sessionToWarmUp[sessionToWarmUp.length - 1]?.session_execution_id;
-
-    console.log({
-      startExecutionId,
-      lastSessionExecutionId,
-    });
-
-    for (let i = 0; i < sessionToWarmUp.length; i++) {
-      const session = sessionToWarmUp[i];
-      try {
-        const _s = await this.startLinkenSphereSession(session.id);
-        const event = new WarmUpProfileEvent(_s);
-        this.eventEmitter.emit(EVENTS.WARM_UP_SESSIONS, event);
-      } catch (error) {
-        console.error(error);
+      if (!desktop) {
+        return;
       }
+
+      const config = await this.getExecutionConfig(
+        desktop.desktop_id,
+        desktop.desktop_name,
+      );
+
+      let sessions = await this.sessionsService.findSessionsForCurrentExecution(
+        config.last_execution_id,
+        desktop.desktop_id,
+      );
+
+      let startExecutionId = config.last_execution_id;
+
+      if (sessions.length === 0) {
+        //reset the last execution id
+
+        startExecutionId =
+          (await this.sessionsService.getInitialExecutionId(
+            desktop.desktop_id,
+          )) - 1;
+
+        const updatedConfig =
+          await this.sessionsExecutionConfigModel.findByIdAndUpdate(
+            config.id,
+            {
+              last_execution_id: startExecutionId,
+              last_execution_date: new Date(),
+            },
+            { new: true },
+          );
+
+        sessions = await this.sessionsService.findSessionsForCurrentExecution(
+          updatedConfig.last_execution_id,
+          desktop.desktop_id,
+        );
+      }
+
+      const sessionToWarmUp = sessions.slice(0, config.executions_per_interval);
+
+      const lastSessionExecutionId =
+        sessionToWarmUp[sessionToWarmUp.length - 1]?.session_execution_id;
+
+      console.log({
+        startExecutionId,
+        lastSessionExecutionId,
+      });
+
+      for (let i = 0; i < sessionToWarmUp.length; i++) {
+        const session = sessionToWarmUp[i];
+        try {
+          if (session.id) {
+            const startedSessionInstance = await this.startLinkenSphereSession(
+              session.id,
+            );
+
+            if (startedSessionInstance) {
+              const event = new WarmUpProfileEvent(session);
+              this.eventEmitter.emit(EVENTS.WARM_UP_SESSIONS, event);
+            }
+          }
+        } catch (error) {
+          console.error(error);
+        }
+      }
+
+      await this.sessionsExecutionConfigModel.findByIdAndUpdate(config.id, {
+        last_execution_id: lastSessionExecutionId,
+        last_execution_date: new Date(),
+      });
+    } catch (error) {
+      console.log(error);
     }
-
-    await this.sessionsExecutionConfigModel.findByIdAndUpdate(config.id, {
-      last_execution_id: lastSessionExecutionId,
-      last_execution_date: new Date(),
-    });
   }
-
-  // start 5 sessions every 30 minutes
-  // @Cron('0 */35 * * * *')
-  // async handleCron() {
-  //   this.startSessions(3);
-  // }
 }

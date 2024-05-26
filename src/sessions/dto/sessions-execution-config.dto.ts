@@ -4,6 +4,7 @@ import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsString,
 } from 'class-validator';
 
 export class SessionsExecutionConfigDto {
@@ -29,6 +30,17 @@ export class SessionsExecutionConfigDto {
   @IsOptional()
   @IsNumber()
   executions_per_interval: number;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  desktop_id: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  @IsNumber()
+  desktop_name: string;
 }
 
 export class UpdateSessionsExecutionConfigDto extends PartialType(
