@@ -126,7 +126,6 @@ export class SessionsController {
 
   async triggerInnit(desktopId: string, profile_name: string) {
     await this.automationService.changeActiveDesktop(desktopId);
-    await this.automationService.syncSessions();
     const event = new ProfileWarmUpEvent({ profile_name });
     this.eventEmitter.emit(EVENTS.PROFILE_WARM_UP, event);
   }
