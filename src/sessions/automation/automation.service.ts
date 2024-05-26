@@ -274,7 +274,6 @@ export class AutomationService {
       const response = await this.httpService.axiosRef.post(
         `${LINKEN_SHPERE_URL}/start`,
         {
-          _id: session.id,
           uuid: session.session_id,
           headless: false,
           debug_port: toNumber(session.debug_port),
