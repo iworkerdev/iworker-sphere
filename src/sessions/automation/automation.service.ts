@@ -608,7 +608,7 @@ export class AutomationService {
         meta: {
           topic,
           visited: {
-            links: visitedLinks,
+            domains: extractSecondDomain(visitedLinks),
             count: visitedLinks.length,
           },
           timeTaken: (endTimes - startTimes) / 1000,
