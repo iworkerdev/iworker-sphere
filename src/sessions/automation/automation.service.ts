@@ -20,6 +20,7 @@ import {
   WarmUpProfileEvent,
 } from './events-config';
 import { __delay__ } from 'src/utils';
+import { LoggerService } from 'src/logger/logger.service';
 
 const LINKEN_SHPERE_URL = 'http://127.0.0.1:40080/sessions';
 
@@ -59,6 +60,7 @@ type Desktop = {
 export class AutomationService {
   constructor(
     private sessionsService: SessionsService,
+    private loggerService: LoggerService,
     private httpService: HttpService,
     private eventEmitter: EventEmitter2,
     @InjectModel(SessionsExecutionConfig.name)
@@ -512,7 +514,6 @@ export class AutomationService {
           if (page.isClosed()) {
             throw new Error('Page is closed or detached');
           }
-
           await page.goto(link.url, {
             waitUntil: 'load',
             timeout: 30000,
@@ -520,11 +521,17 @@ export class AutomationService {
           this.logger.log(`WEBPAGE VISITED: ${link.domain}`);
           await __delay__(3000); // Custom delay function
         } catch (e) {
-          this.logger.error({
-            message: 'Error visiting webpage',
+          const error_log_payload = {
+            session_id: mongo_id,
+            message: 'ERROR visiting webpage',
             error: e.message,
             link,
-          });
+            verbose_error: e,
+          };
+          await this.loggerService.createSessionExecutionErrorLog(
+            `PAGE_VISIT_FAILED`,
+            error_log_payload,
+          );
 
           // Retry logic
           for (let retry = 0; retry < 3; retry++) {
@@ -540,10 +547,18 @@ export class AutomationService {
               await __delay__(3000); // Custom delay function
               break; // Exit retry loop if successful
             } catch (retryError) {
-              this.logger.error({
-                message: `Retry ${retry + 1} failed for ${link.domain}`,
+              const retry_error_log_payload = {
+                session_id: mongo_id,
+                message: 'ERROR visiting webpage on retry',
                 error: retryError.message,
-              });
+                link,
+                verbose_error: retryError,
+              };
+
+              await this.loggerService.createSessionExecutionErrorLog(
+                `PAGE_VISIT_RETRY_FAILED`,
+                retry_error_log_payload,
+              );
             }
           }
         }
@@ -558,8 +573,20 @@ export class AutomationService {
 
       const stopSessionEvent = new StopSessionEvent({ session_id });
       this.eventEmitter.emit(EVENTS.STOP_SESSION, stopSessionEvent);
-      this.logger.log(
-        `WARM_UP_SESSION_COMPLETED: topic=${topic} - session_id=${session_id} - no_of_links=${linksToVisit.length} - timeTaken=${(endTimes - startTimes) / 1000} seconds`,
+
+      const complete_log_payload = {
+        session_id: mongo_id,
+        message: `WARM_UP_SESSION_COMPLETED: topic=${topic} - session_id=${session_id} - no_of_links=${linksToVisit.length} - timeTaken=${(endTimes - startTimes) / 1000} seconds`,
+        error: '',
+        link: {
+          url: linksToVisit?.map((l) => l.url).join(','),
+          domain: linksToVisit?.map((l) => l.domain).join(','),
+        },
+      };
+
+      await this.loggerService.createSessionExecutionLog(
+        `WARM_UP_SESSION_COMPLETED`,
+        complete_log_payload,
       );
     } catch (error) {
       // const stopSessionEvent = new StopSessionEvent({ session_id });
