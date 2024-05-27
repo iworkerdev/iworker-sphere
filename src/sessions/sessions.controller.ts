@@ -102,12 +102,12 @@ export class SessionsController {
     } else {
       const sphereRunningSessions =
         await this.automationService.getRunningSessions();
-      const activeSessions =
-        await this.sessionsService.findManyActiveByDesktopId(
-          selectedDesktop.uuid,
-        );
 
-      if (sphereRunningSessions.length > 0 || activeSessions.length > 0) {
+      await this.sessionsService.deactivateAllActiveSessions(
+        selectedDesktop.uuid,
+      );
+
+      if (sphereRunningSessions.length > 0) {
         throw new BadRequestException({
           message: `There are active sessions running for the profile ${profile_name}. Please wait for the active sessions to complete before triggering warm up execution.`,
           active_sessions: sphereRunningSessions,
