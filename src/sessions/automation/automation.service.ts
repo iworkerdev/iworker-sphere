@@ -490,17 +490,39 @@ export class AutomationService {
         `WARM_UP_SESSION_STARTED: topic=${topic} - session_id=${session_id}`,
       );
 
-      const browser = await this.connectToBrowser(toNumber(debug_port));
-      // delay 2.5 seconds
-      await __delay__(5000);
+      const browse = async (url: string) => {
+        const browser = await this.connectToBrowser(toNumber(debug_port));
+        // delay 2.5 seconds
+        await __delay__(3000);
 
-      const [page] = await browser.pages();
+        const [page] = await browser.pages();
 
-      if (!page) {
-        throw new NotFoundException(
-          'Did not find any open pages in the browser, please open a page first',
-        );
-      }
+        if (!page) {
+          throw new NotFoundException(
+            'Did not find any open pages in the browser, please open a page first',
+          );
+        }
+
+        if (page.isClosed()) {
+          // create a new page and use it
+          const _page_ = await browser.newPage();
+          return await Promise.all([
+            _page_.goto(url, {
+              waitUntil: 'load',
+              timeout: 10000,
+            }),
+            page.waitForNavigation(),
+          ]);
+        } else {
+          return await Promise.all([
+            page.goto(url, {
+              waitUntil: 'load',
+              timeout: 10000,
+            }),
+            page.waitForNavigation(),
+          ]);
+        }
+      };
 
       // delay for 5 seconds
       const linksToVisit = await this.getWebsiteLinksToScrape(topic);
@@ -511,19 +533,7 @@ export class AutomationService {
         const link = linksToVisit[i];
         try {
           // Check if the page is still available
-          if (page.isClosed()) {
-            // create a new page and use it
-            const _page_ = await browser.newPage();
-            await _page_.goto(link.url, {
-              waitUntil: 'load',
-              timeout: 30000,
-            });
-          } else {
-            await page.goto(link.url, {
-              waitUntil: 'load',
-              timeout: 30000,
-            });
-          }
+          await browse(link.url);
           this.logger.log(`WEBPAGE VISITED: ${link.domain}`);
           await __delay__(3000); // Custom delay function
         } catch (e) {
@@ -544,19 +554,7 @@ export class AutomationService {
           for (let retry = 0; retry < 3; retry++) {
             await __delay__(2000); // Wait before retrying
             try {
-              if (page.isClosed()) {
-                // create a new page and use it
-                const _page_ = await browser.newPage();
-                await _page_.goto(link.url, {
-                  waitUntil: 'load',
-                  timeout: 30000,
-                });
-              } else {
-                await page.goto(link.url, {
-                  waitUntil: 'load',
-                  timeout: 30000,
-                });
-              }
+              await browse(link.url);
               this.logger.log(
                 `WEBPAGE VISITED on retry ${retry + 1}: ${link.domain}`,
               );
