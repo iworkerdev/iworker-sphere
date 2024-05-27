@@ -1,5 +1,5 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsObject, IsOptional, IsString } from 'class-validator';
 
 import { Type } from 'class-transformer';
 
@@ -44,6 +44,10 @@ export class SessionExecutionLogsDto {
   @IsOptional()
   @IsString()
   verbose_error?: string;
+
+  @IsOptional()
+  @IsObject()
+  meta?: Record<string, any>;
 }
 
 export class UpdateSessionExecutionLogsDto extends PartialType(

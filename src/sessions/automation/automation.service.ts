@@ -491,6 +491,7 @@ export class AutomationService {
       );
 
       const browser = await this.connectToBrowser(toNumber(debug_port));
+      const visitedLinks = [];
 
       const browse = async (url: string) => {
         // delay 2.5 seconds
@@ -507,21 +508,26 @@ export class AutomationService {
         if (page.isClosed()) {
           // create a new page and use it
           const _page_ = await browser.newPage();
-          return await Promise.all([
+          const visited = await Promise.all([
             _page_.goto(url, {
               waitUntil: 'load',
               timeout: 600000,
             }),
             // page.waitForNavigation(),
           ]);
+          visitedLinks.push(url);
+          return visited;
         } else {
-          return await Promise.all([
+          const visited = await Promise.all([
             page.goto(url, {
               waitUntil: 'load',
               timeout: 60000,
             }),
             // page.waitForNavigation(),
           ]);
+
+          visitedLinks.push(url);
+          return visited;
         }
       };
 
@@ -598,6 +604,14 @@ export class AutomationService {
         link: {
           url: linksToVisit?.map((l) => l.url).join(','),
           domain: linksToVisit?.map((l) => l.domain).join(','),
+        },
+        meta: {
+          topic,
+          visited: {
+            links: visitedLinks,
+            count: visitedLinks.length,
+          },
+          timeTaken: (endTimes - startTimes) / 1000,
         },
       };
 

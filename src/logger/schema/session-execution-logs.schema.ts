@@ -37,6 +37,9 @@ export class SessionExecutionLogs extends mongoose.Document {
 
   @Prop({ required: false })
   verbose_error: string;
+
+  @Prop({ required: false })
+  meta: Record<string, any>;
 }
 
 export const SessionExecutionLogsSchema =
