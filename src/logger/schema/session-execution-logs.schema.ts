@@ -26,6 +26,9 @@ export class SessionExecutionLogs extends mongoose.Document {
   @Prop({ required: true })
   error: string;
 
+  @Prop({ required: true })
+  log_type: string;
+
   @Prop({ required: false })
   message: string;
 

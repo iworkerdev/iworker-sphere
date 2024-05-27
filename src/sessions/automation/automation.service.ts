@@ -530,6 +530,7 @@ export class AutomationService {
           const error_log_payload = {
             session_id: mongo_id,
             message: 'ERROR visiting webpage',
+            log_type: 'ERROR',
             error: e.message,
             link,
             verbose_error: e,
@@ -566,6 +567,7 @@ export class AutomationService {
                 session_id: mongo_id,
                 message: 'ERROR visiting webpage on retry',
                 error: retryError.message,
+                log_type: 'ERROR',
                 link,
                 verbose_error: retryError,
               };
@@ -593,6 +595,7 @@ export class AutomationService {
         session_id: mongo_id,
         message: `WARM_UP_SESSION_COMPLETED: topic=${topic} - session_id=${session_id} - no_of_links=${linksToVisit.length} - timeTaken=${(endTimes - startTimes) / 1000} seconds`,
         error: '',
+        log_type: 'INFO',
         link: {
           url: linksToVisit?.map((l) => l.url).join(','),
           domain: linksToVisit?.map((l) => l.domain).join(','),
