@@ -23,8 +23,8 @@ export class SessionExecutionLogs extends mongoose.Document {
   })
   session_id!: string;
 
-  @Prop({ required: true })
-  error: string;
+  @Prop({ required: false })
+  error?: string;
 
   @Prop({ required: true })
   log_type: string;
