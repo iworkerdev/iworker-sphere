@@ -490,8 +490,9 @@ export class AutomationService {
         `WARM_UP_SESSION_STARTED: topic=${topic} - session_id=${session_id}`,
       );
 
+      const browser = await this.connectToBrowser(toNumber(debug_port));
+
       const browse = async (url: string) => {
-        const browser = await this.connectToBrowser(toNumber(debug_port));
         // delay 2.5 seconds
         await __delay__(3000);
 
@@ -509,17 +510,17 @@ export class AutomationService {
           return await Promise.all([
             _page_.goto(url, {
               waitUntil: 'load',
-              timeout: 10000,
+              timeout: 600000,
             }),
-            page.waitForNavigation(),
+            // page.waitForNavigation(),
           ]);
         } else {
           return await Promise.all([
             page.goto(url, {
               waitUntil: 'load',
-              timeout: 10000,
+              timeout: 60000,
             }),
-            page.waitForNavigation(),
+            // page.waitForNavigation(),
           ]);
         }
       };

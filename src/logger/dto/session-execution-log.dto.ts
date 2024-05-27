@@ -27,8 +27,8 @@ export class SessionExecutionLogsDto {
   log_type: string;
 
   @ApiProperty()
-  @IsNotEmpty()
   @IsString()
+  @IsOptional()
   error?: string;
 
   @ApiProperty()
