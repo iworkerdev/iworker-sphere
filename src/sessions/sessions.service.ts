@@ -100,12 +100,13 @@ export class SessionsService {
     }
   }
 
-  async deactivateAllActiveSessions() {
+  async deactivateAllActiveSessions(desktop_id: string) {
     try {
       const sessions = await this.sphereSessionModel.updateMany(
         {
           user_id: this.configService.get('USER_ID'),
           status: 'ACTIVE',
+          desktop_id,
         },
         { status: 'IDLE' },
       );
