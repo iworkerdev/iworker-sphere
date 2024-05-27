@@ -492,7 +492,7 @@ export class AutomationService {
       // delay 2.5 seconds
       await __delay__(5000);
 
-      const page = await browser.pages().then((pages) => pages?.[0]);
+      const [page] = await browser.pages();
 
       if (!page) {
         throw new NotFoundException(
@@ -507,21 +507,46 @@ export class AutomationService {
 
       for (let i = 0; i < linksToVisit.length; i++) {
         const link = linksToVisit[i];
-        await __delay__(1500);
         try {
+          // Check if the page is still available
+          if (page.isClosed()) {
+            throw new Error('Page is closed or detached');
+          }
+
           await page.goto(link.url, {
             waitUntil: 'load',
             timeout: 30000,
           });
           this.logger.log(`WEBPAGE VISITED: ${link.domain}`);
+          await __delay__(3000); // Custom delay function
         } catch (e) {
-          console.error({
+          this.logger.error({
             message: 'Error visiting webpage',
-            error: e?.response?.data || e?.message,
+            error: e.message,
             link,
           });
+
+          // Retry logic
+          for (let retry = 0; retry < 3; retry++) {
+            await __delay__(2000); // Wait before retrying
+            try {
+              await page.goto(link.url, {
+                waitUntil: 'load',
+                timeout: 30000,
+              });
+              this.logger.log(
+                `WEBPAGE VISITED on retry ${retry + 1}: ${link.domain}`,
+              );
+              await __delay__(3000); // Custom delay function
+              break; // Exit retry loop if successful
+            } catch (retryError) {
+              this.logger.error({
+                message: `Retry ${retry + 1} failed for ${link.domain}`,
+                error: retryError.message,
+              });
+            }
+          }
         }
-        await __delay__(1500);
       }
 
       const endTimes = new Date().getTime();
