@@ -512,12 +512,18 @@ export class AutomationService {
         try {
           // Check if the page is still available
           if (page.isClosed()) {
-            throw new Error('Page is closed or detached');
+            // create a new page and use it
+            const _page_ = await browser.newPage();
+            await _page_.goto(link.url, {
+              waitUntil: 'load',
+              timeout: 30000,
+            });
+          } else {
+            await page.goto(link.url, {
+              waitUntil: 'load',
+              timeout: 30000,
+            });
           }
-          await page.goto(link.url, {
-            waitUntil: 'load',
-            timeout: 30000,
-          });
           this.logger.log(`WEBPAGE VISITED: ${link.domain}`);
           await __delay__(3000); // Custom delay function
         } catch (e) {
@@ -537,10 +543,19 @@ export class AutomationService {
           for (let retry = 0; retry < 3; retry++) {
             await __delay__(2000); // Wait before retrying
             try {
-              await page.goto(link.url, {
-                waitUntil: 'load',
-                timeout: 30000,
-              });
+              if (page.isClosed()) {
+                // create a new page and use it
+                const _page_ = await browser.newPage();
+                await _page_.goto(link.url, {
+                  waitUntil: 'load',
+                  timeout: 30000,
+                });
+              } else {
+                await page.goto(link.url, {
+                  waitUntil: 'load',
+                  timeout: 30000,
+                });
+              }
               this.logger.log(
                 `WEBPAGE VISITED on retry ${retry + 1}: ${link.domain}`,
               );
@@ -589,8 +604,6 @@ export class AutomationService {
         complete_log_payload,
       );
     } catch (error) {
-      // const stopSessionEvent = new StopSessionEvent({ session_id });
-      // this.eventEmitter.emit(EVENTS.STOP_SESSION, stopSessionEvent);
       console.error(error);
     }
   }
