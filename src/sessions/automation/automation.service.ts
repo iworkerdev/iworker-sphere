@@ -490,6 +490,8 @@ export class AutomationService {
 
       const browser = await this.connectToBrowser(toNumber(debug_port));
       // delay 2.5 seconds
+      await __delay__(5000);
+
       const page = await browser.pages().then((pages) => pages?.[0]);
 
       if (!page) {
@@ -505,7 +507,7 @@ export class AutomationService {
 
       for (let i = 0; i < linksToVisit.length; i++) {
         const link = linksToVisit[i];
-        await __delay__(1000);
+        await __delay__(1500);
         try {
           await page.goto(link.url, {
             waitUntil: 'load',
@@ -519,7 +521,7 @@ export class AutomationService {
             link,
           });
         }
-        await __delay__(2000);
+        await __delay__(1500);
       }
 
       const endTimes = new Date().getTime();
