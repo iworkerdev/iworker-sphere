@@ -3,7 +3,7 @@ import { Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { SessionExecutionLogs } from './schema';
 import { Model } from 'mongoose';
-import { SessionExecutionLogsDTO } from './dto';
+import { SessionExecutionLogsDto } from './dto';
 
 @Injectable()
 export class LoggerService {
@@ -32,7 +32,7 @@ export class LoggerService {
 
   async createSessionExecutionErrorLog(
     event: string,
-    data: SessionExecutionLogsDTO,
+    data: SessionExecutionLogsDto,
   ) {
     this.logError(event, data);
     try {
@@ -45,7 +45,7 @@ export class LoggerService {
 
   async createSessionExecutionLog(
     event: string,
-    data: SessionExecutionLogsDTO,
+    data: SessionExecutionLogsDto,
   ) {
     this.logInfo(event, data);
     try {
