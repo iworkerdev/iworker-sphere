@@ -21,8 +21,8 @@ import { SessionsModule } from './sessions/sessions.module';
     HttpModule,
     ThrottlerModule.forRoot([
       {
-        ttl: 1000,
-        limit: 10,
+        ttl: 60000,
+        limit: 1,
       },
     ]),
     MongooseModule.forRoot(GLOBAL_CONFIG.MONGODB_URI),
