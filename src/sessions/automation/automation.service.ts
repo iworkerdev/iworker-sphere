@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-// import * as puppeteer from 'puppeteer';
+import * as puppeteer from 'puppeteer-core';
 
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
@@ -37,7 +37,6 @@ import {
   WarmUpProfileEvent,
 } from './events-config';
 import { HandleCatchException, __delay__ } from 'src/utils';
-import { BrowserConnector } from './browser-connector';
 import { LoggerService } from 'src/logger/logger.service';
 
 const LINKEN_SHPERE_URL = 'http://127.0.0.1:40080/sessions';
@@ -100,6 +99,7 @@ export class AutomationService {
     signInToLinkenSphere();
   }
   private readonly logger = new Logger();
+  private browser: puppeteer.Browser | null = null;
 
   private logEvent(event: string, data: any) {
     this.logger.log(data, `Event: ${event}`);
@@ -443,11 +443,18 @@ export class AutomationService {
 
   private async connectToBrowser(debugPort: number) {
     try {
-      const connector = new BrowserConnector();
+      this.browser = await puppeteer.connect({
+        browserURL: `http://localhost:${debugPort}`,
+        protocolTimeout: 60000,
+      });
 
-      const browser = await connector.connectToBrowser(debugPort);
+      const version = await this.browser.version();
+      console.log({
+        message: 'Connected to browser',
+        browser: version,
+      });
 
-      return browser;
+      return this.browser;
     } catch (error) {
       console.error(error);
       return null;
@@ -655,7 +662,7 @@ export class AutomationService {
             (await this.sessionsService.getInitialExecutionId(desktop_id)) - 1,
           last_execution_date: new Date(),
           execution_interval: 10,
-          executions_per_interval: 10,
+          executions_per_interval: 5,
           desktop_id,
           desktop_name,
         });

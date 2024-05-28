@@ -12,7 +12,6 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SessionsModule } from './sessions/sessions.module';
-import { LoggerModule } from './logger/logger.module';
 
 @Module({
   imports: [
