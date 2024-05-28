@@ -763,7 +763,9 @@ export class AutomationService {
 
   async executeProfileWarmUpSequence(desktop_id: string, desktop_name: string) {
     await this.changeActiveDesktop(desktop_id);
-    await __delay__(6000);
+
+    //wait for 90 seconds
+    await __delay__(90000);
 
     const event = new ProfileWarmUpEvent({
       profile_name: desktop_name,
