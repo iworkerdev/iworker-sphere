@@ -10,6 +10,7 @@ import {
 
 import { AutomationService } from './automation/automation.service';
 import { HttpModule } from '@nestjs/axios';
+import { LoggerModule } from 'src/logger/logger.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { SessionsController } from './sessions.controller';
 import { SessionsService } from './sessions.service';
@@ -31,6 +32,7 @@ import { SessionsService } from './sessions.service';
       },
     ]),
     HttpModule,
+    LoggerModule,
   ],
   controllers: [SessionsController],
   providers: [SessionsService, AutomationService, Logger],

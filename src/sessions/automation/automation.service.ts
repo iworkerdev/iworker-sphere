@@ -37,8 +37,8 @@ import {
   WarmUpProfileEvent,
 } from './events-config';
 import { HandleCatchException, __delay__ } from 'src/utils';
-import { LoggerService } from 'src/logger/logger.service';
 import { BrowserConnector } from './browser-connector';
+import { LoggerService } from 'src/logger/logger.service';
 
 const LINKEN_SHPERE_URL = 'http://127.0.0.1:40080/sessions';
 
@@ -78,6 +78,7 @@ type Desktop = {
 export class AutomationService {
   constructor(
     private sessionsService: SessionsService,
+    private loggerService: LoggerService,
     private httpService: HttpService,
     private eventEmitter: EventEmitter2,
     @InjectModel(SessionsExecutionConfig.name)
@@ -509,14 +510,45 @@ export class AutomationService {
       );
 
       const browser = await this.connectToBrowser(toNumber(debug_port));
-      // delay 2.5 seconds
-      const page = await browser.pages().then((pages) => pages?.[0]);
+      const visitedLinks = [];
 
-      if (!page) {
-        throw new NotFoundException(
-          'Did not find any open pages in the browser, please open a page first',
-        );
-      }
+      const browse = async (url: string) => {
+        // delay 2.5 seconds
+        await __delay__(3000);
+
+        const [page] = await browser.pages();
+
+        if (!page) {
+          throw new NotFoundException(
+            'Did not find any open pages in the browser, please open a page first',
+          );
+        }
+
+        if (page.isClosed()) {
+          // create a new page and use it
+          const _page_ = await browser.newPage();
+          const visited = await Promise.all([
+            _page_.goto(url, {
+              waitUntil: 'load',
+              timeout: 600000,
+            }),
+            // page.waitForNavigation(),
+          ]);
+          visitedLinks.push(url);
+          return visited;
+        } else {
+          const visited = await Promise.all([
+            page.goto(url, {
+              waitUntil: 'load',
+              timeout: 60000,
+            }),
+            // page.waitForNavigation(),
+          ]);
+
+          visitedLinks.push(url);
+          return visited;
+        }
+      };
 
       // delay for 5 seconds
       const linksToVisit = await this.getWebsiteLinksToScrape(topic);
@@ -525,21 +557,52 @@ export class AutomationService {
 
       for (let i = 0; i < linksToVisit.length; i++) {
         const link = linksToVisit[i];
-        await __delay__(1000);
         try {
-          await page.goto(link.url, {
-            waitUntil: 'load',
-            timeout: 30000,
-          });
+          // Check if the page is still available
+          await browse(link.url);
           this.logger.log(`WEBPAGE VISITED: ${link.domain}`);
+          await __delay__(3000); // Custom delay function
         } catch (e) {
-          console.error({
-            message: 'Error visiting webpage',
-            error: e?.response?.data || e?.message,
+          const error_log_payload = {
+            session_id: mongo_id,
+            message: 'ERROR visiting webpage',
+            log_type: 'ERROR',
+            error: e.message,
             link,
-          });
+            verbose_error: e,
+          };
+          await this.loggerService.createSessionExecutionErrorLog(
+            `PAGE_VISIT_FAILED`,
+            error_log_payload,
+          );
+
+          // Retry logic
+          for (let retry = 0; retry < 3; retry++) {
+            await __delay__(2000); // Wait before retrying
+            try {
+              await browse(link.url);
+              this.logger.log(
+                `WEBPAGE VISITED on retry ${retry + 1}: ${link.domain}`,
+              );
+              await __delay__(3000); // Custom delay function
+              break; // Exit retry loop if successful
+            } catch (retryError) {
+              const retry_error_log_payload = {
+                session_id: mongo_id,
+                message: 'ERROR visiting webpage on retry',
+                error: retryError.message,
+                log_type: 'ERROR',
+                link,
+                verbose_error: retryError,
+              };
+
+              await this.loggerService.createSessionExecutionErrorLog(
+                `PAGE_VISIT_RETRY_FAILED`,
+                retry_error_log_payload,
+              );
+            }
+          }
         }
-        await __delay__(2000);
       }
 
       const endTimes = new Date().getTime();
@@ -551,12 +614,31 @@ export class AutomationService {
 
       const stopSessionEvent = new StopSessionEvent({ session_id });
       this.eventEmitter.emit(EVENTS.STOP_SESSION, stopSessionEvent);
-      this.logger.log(
-        `WARM_UP_SESSION_COMPLETED: topic=${topic} - session_id=${session_id} - no_of_links=${linksToVisit.length} - timeTaken=${(endTimes - startTimes) / 1000} seconds`,
+
+      const complete_log_payload = {
+        session_id: mongo_id,
+        message: `WARM_UP_SESSION_COMPLETED: topic=${topic} - session_id=${session_id} - no_of_links=${linksToVisit.length} - timeTaken=${(endTimes - startTimes) / 1000} seconds`,
+        error: '',
+        log_type: 'INFO',
+        link: {
+          url: linksToVisit?.map((l) => l.url).join(','),
+          domain: linksToVisit?.map((l) => l.domain).join(','),
+        },
+        meta: {
+          topic,
+          visited: {
+            domains: extractSecondDomain(visitedLinks),
+            count: visitedLinks.length,
+          },
+          timeTaken: (endTimes - startTimes) / 1000,
+        },
+      };
+
+      await this.loggerService.createSessionExecutionLog(
+        `WARM_UP_SESSION_COMPLETED`,
+        complete_log_payload,
       );
     } catch (error) {
-      // const stopSessionEvent = new StopSessionEvent({ session_id });
-      // this.eventEmitter.emit(EVENTS.STOP_SESSION, stopSessionEvent);
       console.error(error);
     }
   }
