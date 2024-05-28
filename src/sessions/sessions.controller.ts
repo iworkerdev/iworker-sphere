@@ -10,8 +10,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import {
-  CreateSphereSessionDto,
-  UpdateSphereSessionDto,
+  CreateSphereSessionDTO,
+  UpdateSphereSessionDTO,
 } from './dto/sphere-session.dto';
 
 import { EVENTS, ProfileWarmUpEvent } from './automation/events-config';
@@ -35,7 +35,7 @@ export class SessionsController {
   }
 
   @Post()
-  createOne(@Body() session: CreateSphereSessionDto) {
+  createOne(@Body() session: CreateSphereSessionDTO) {
     return this.sessionsService.createOne(session);
   }
 
@@ -78,6 +78,11 @@ export class SessionsController {
       timestamp: new Date().toISOString(),
       response,
     };
+  }
+
+  @Post('automation/bulk-profile-warm-up')
+  async bulkProfileWarmUp(@Body('profiles') profiles: string[]) {
+    return await this.automationService.bulkWarmUp(profiles);
   }
 
   @Post('automation/trigger-warm-up-execution')
@@ -136,7 +141,7 @@ export class SessionsController {
   }
 
   @Patch('session/:id')
-  updateOne(@Param('id') id: string, @Body() session: UpdateSphereSessionDto) {
+  updateOne(@Param('id') id: string, @Body() session: UpdateSphereSessionDTO) {
     return this.sessionsService.updateOne(id, session);
   }
 

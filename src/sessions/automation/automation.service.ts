@@ -1,14 +1,31 @@
 import * as cheerio from 'cheerio';
-import * as puppeteer from 'puppeteer';
+// import * as puppeteer from 'puppeteer';
 
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { chunk, filter, isArray, omit, reduce, toNumber } from 'lodash';
+import {
+  Injectable,
+  NotAcceptableException,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  chunk,
+  filter,
+  isArray,
+  map,
+  omit,
+  reduce,
+  sortBy,
+  toNumber,
+} from 'lodash';
 
 import { HttpService } from '@nestjs/axios';
 import { Logger } from '@nestjs/common';
 import { SessionsService } from '../sessions.service';
-import { SessionsExecutionConfig } from '../schema';
+import {
+  ProfileWarmUpSequence,
+  ProfileWarmUpSequenceStatus,
+  SessionsExecutionConfig,
+} from '../schema';
 import { WebSearchTopics } from 'src/constants';
 import { uniqBy } from 'lodash';
 import { InjectModel } from '@nestjs/mongoose';
@@ -19,7 +36,9 @@ import {
   StopSessionEvent,
   WarmUpProfileEvent,
 } from './events-config';
-import { __delay__ } from 'src/utils';
+import { HandleCatchException, __delay__ } from 'src/utils';
+import { LoggerService } from 'src/logger/logger.service';
+import { BrowserConnector } from './browser-connector';
 
 const LINKEN_SHPERE_URL = 'http://127.0.0.1:40080/sessions';
 
@@ -63,6 +82,8 @@ export class AutomationService {
     private eventEmitter: EventEmitter2,
     @InjectModel(SessionsExecutionConfig.name)
     private sessionsExecutionConfigModel: Model<SessionsExecutionConfig>,
+    @InjectModel(ProfileWarmUpSequence.name)
+    private profileWarmUpSequenceModel: Model<ProfileWarmUpSequence>,
   ) {
     async function signInToLinkenSphere() {
       try {
@@ -78,7 +99,6 @@ export class AutomationService {
     signInToLinkenSphere();
   }
   private readonly logger = new Logger();
-  private browser: puppeteer.Browser;
 
   private logEvent(event: string, data: any) {
     this.logger.log(data, `Event: ${event}`);
@@ -229,8 +249,9 @@ export class AutomationService {
                 );
                 results.push(s_updated);
               } else {
-                const debug_port =
-                  await this.sessionsService.getNextDebugPort();
+                const debug_port = await this.sessionsService.getNextDebugPort(
+                  activeDesktop?.uuid,
+                );
                 const s_new = await this.sessionsService.createOne({
                   ...payload,
                   debug_port: `${debug_port}`,
@@ -359,6 +380,9 @@ export class AutomationService {
             highestExecutionId,
             highestExecutionIdInExecutionBatch,
           });
+          try {
+            this.executeNextProfileSequenceDesktop(session.desktop_id);
+          } catch (error) {}
         }
       }
     } catch (error) {
@@ -418,18 +442,14 @@ export class AutomationService {
 
   private async connectToBrowser(debugPort: number) {
     try {
-      this.browser = await puppeteer.connect({
-        browserURL: `http://localhost:${debugPort}`,
-      });
+      const connector = new BrowserConnector();
 
-      console.log({
-        message: 'Connected to browser',
-        browser: await this.browser?.version().then((version) => version),
-      });
+      const browser = await connector.connectToBrowser(debugPort);
 
-      return this.browser;
+      return browser;
     } catch (error) {
       console.error(error);
+      return null;
     }
   }
 
@@ -625,11 +645,6 @@ export class AutomationService {
       const lastSessionExecutionId =
         sessionToWarmUp[sessionToWarmUp.length - 1]?.session_execution_id;
 
-      console.log({
-        startExecutionId,
-        lastSessionExecutionId,
-      });
-
       for (let i = 0; i < sessionToWarmUp.length; i++) {
         const session = sessionToWarmUp[i];
         try {
@@ -654,6 +669,172 @@ export class AutomationService {
       });
     } catch (error) {
       console.log(error);
+    }
+  }
+
+  async executeProfileWarmUpSequence(desktop_id: string, desktop_name: string) {
+    await this.changeActiveDesktop(desktop_id);
+    await __delay__(6000);
+
+    const event = new ProfileWarmUpEvent({
+      profile_name: desktop_name,
+    });
+
+    this.eventEmitter.emit(EVENTS.PROFILE_WARM_UP, event);
+  }
+
+  async getHighestProfileSequenceID() {
+    const highestSequence = await this.profileWarmUpSequenceModel
+      .findOne()
+      .sort({ sequence_number: -1 })
+      .exec();
+    return highestSequence?.sequence_number || 0;
+  }
+
+  async executeNextProfileSequenceDesktop(current_desktop_id: string) {
+    console.log('Executing next profile sequence desktop', current_desktop_id);
+
+    try {
+      const sequence = await this.profileWarmUpSequenceModel.findOne({
+        status: 'RUNNING',
+      });
+
+      const desktop = sequence?.desktop_profiles.find(
+        (profile) => profile.desktop_id === current_desktop_id,
+      );
+
+      if (!desktop) {
+        return;
+      }
+
+      await this.profileWarmUpSequenceModel.findByIdAndUpdate(
+        sequence.id,
+        {
+          'desktop_profiles.$[element].status':
+            ProfileWarmUpSequenceStatus.COMPLETED,
+        },
+        {
+          arrayFilters: [{ 'element.desktop_id': current_desktop_id }],
+        },
+      );
+
+      const nextDesktop = sequence?.desktop_profiles.find(
+        (profile) =>
+          profile.execution_sequence === desktop.execution_sequence + 1,
+      );
+
+      if (!nextDesktop) {
+        await this.profileWarmUpSequenceModel.findByIdAndUpdate(sequence.id, {
+          status: 'COMPLETED',
+          finished_at: new Date(),
+        });
+        return;
+      }
+
+      await this.profileWarmUpSequenceModel.findByIdAndUpdate(
+        sequence.id,
+        {
+          'desktop_profiles.$[element].status': 'RUNNING',
+        },
+        {
+          arrayFilters: [{ 'element.desktop_id': nextDesktop.desktop_id }],
+        },
+      );
+
+      await this.executeProfileWarmUpSequence(
+        nextDesktop.desktop_id,
+        nextDesktop.desktop_name,
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async bulkWarmUp(desktop_names: string[]) {
+    try {
+      const NEW_PROFILE_SEQUENCE_ID =
+        (await this.getHighestProfileSequenceID()) + 1;
+
+      const desktops = await this.getDesktops();
+
+      const desktopsToWarmUp = filter(desktops, (desktop) =>
+        desktop_names.includes(desktop.name),
+      );
+
+      // sort by how the desktops_names are passed
+      const _desktopsToWarmUp = sortBy(desktopsToWarmUp, (desktop) =>
+        desktop_names.indexOf(desktop.name),
+      );
+
+      const desktop_profiles = map(_desktopsToWarmUp, (desktop, index) => ({
+        desktop_id: desktop.uuid,
+        desktop_name: desktop.name,
+        status: 'IDLE',
+        execution_sequence: index + 1,
+        started_at: null,
+        finished_at: null,
+      }));
+
+      // format sequence id from sequence number to PWS-00000001
+      function formatSequenceId(sequence_number: number) {
+        return `PWS-${sequence_number.toString().padStart(8, '0')}`;
+      }
+
+      // If there is a running sequence, return
+      const runningSequence = await this.profileWarmUpSequenceModel.findOne({
+        status: 'RUNNING',
+      });
+
+      if (runningSequence) {
+        throw new NotAcceptableException(
+          'There is a running sequence, please wait for it to complete before starting a new one.',
+        );
+      }
+
+      const sequence = await this.profileWarmUpSequenceModel.create({
+        sequence_id: formatSequenceId(NEW_PROFILE_SEQUENCE_ID),
+        sequence_number: NEW_PROFILE_SEQUENCE_ID,
+        status: 'IDLE',
+        desktop_profiles,
+      });
+
+      // start sequence
+      const desktop = sortBy(
+        sequence.desktop_profiles,
+        'execution_sequence',
+      )[0];
+
+      // update sequence status to running
+      await this.profileWarmUpSequenceModel.findByIdAndUpdate(
+        sequence.id,
+        {
+          status: 'RUNNING',
+          started_at: new Date(),
+        },
+        { new: true },
+      );
+
+      // update desktop status to running
+      const executingSequence =
+        await this.profileWarmUpSequenceModel.findByIdAndUpdate(
+          sequence.id,
+          {
+            'desktop_profiles.$[element].status': 'RUNNING',
+          },
+          {
+            arrayFilters: [{ 'element.desktop_id': desktop.desktop_id }],
+            new: true,
+          },
+        );
+
+      await this.executeProfileWarmUpSequence(
+        desktop.desktop_id,
+        desktop.desktop_name,
+      );
+
+      return executingSequence;
+    } catch (error) {
+      return HandleCatchException(error);
     }
   }
 }

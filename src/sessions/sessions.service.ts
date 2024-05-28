@@ -5,8 +5,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { HandleCatchException } from 'src/utils';
 import {
-  CreateSphereSessionDto,
-  UpdateSphereSessionDto,
+  CreateSphereSessionDTO,
+  UpdateSphereSessionDTO,
 } from './dto/sphere-session.dto';
 import { toNumber } from 'lodash';
 
@@ -152,10 +152,11 @@ export class SessionsService {
     }
   }
 
-  async getNextDebugPort() {
+  async getNextDebugPort(desktopId: string) {
     try {
       const sessions = await this.sphereSessionModel.find({
         user_id: this.configService.get('USER_ID'),
+        desktop_id: desktopId,
       });
 
       if (sessions.length === 0) {
@@ -351,7 +352,7 @@ export class SessionsService {
     }
   }
 
-  async createOne(session: CreateSphereSessionDto) {
+  async createOne(session: CreateSphereSessionDTO) {
     try {
       const newSession = new this.sphereSessionModel({
         ...session,
@@ -364,7 +365,7 @@ export class SessionsService {
     }
   }
 
-  async updateOne(id: string, session: UpdateSphereSessionDto) {
+  async updateOne(id: string, session: UpdateSphereSessionDTO) {
     try {
       const updatedSession = this.sphereSessionModel.findByIdAndUpdate(
         id,

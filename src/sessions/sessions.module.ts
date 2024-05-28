@@ -1,5 +1,7 @@
 import { Logger, Module } from '@nestjs/common';
 import {
+  ProfileWarmUpSequence,
+  ProfileWarmUpSequenceSchema,
   SessionsExecutionConfig,
   SessionsExecutionConfigSchema,
   SphereSession,
@@ -22,6 +24,10 @@ import { SessionsService } from './sessions.service';
       {
         name: SessionsExecutionConfig.name,
         schema: SessionsExecutionConfigSchema,
+      },
+      {
+        name: ProfileWarmUpSequence.name,
+        schema: ProfileWarmUpSequenceSchema,
       },
     ]),
     HttpModule,

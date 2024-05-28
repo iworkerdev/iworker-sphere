@@ -35,7 +35,7 @@ export class SphereSession extends mongoose.Document {
   @Prop({ required: false, default: true })
   headless?: boolean;
 
-  @Prop({ required: true, unique: true, default: 8089 })
+  @Prop({ required: true, default: 8089 })
   debug_port?: string;
 
   @Prop({ required: false, default: 'IDLE' })

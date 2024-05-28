@@ -7,6 +7,7 @@ import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { GLOBAL_CONFIG } from './configurations';
 import { HttpModule } from '@nestjs/axios';
+import { LoggerModule } from './logger/logger.module';
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -20,8 +21,8 @@ import { SessionsModule } from './sessions/sessions.module';
     HttpModule,
     ThrottlerModule.forRoot([
       {
-        ttl: 90000,
-        limit: 1,
+        ttl: 1000,
+        limit: 10,
       },
     ]),
     MongooseModule.forRoot(GLOBAL_CONFIG.MONGODB_URI),

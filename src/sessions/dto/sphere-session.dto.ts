@@ -7,7 +7,7 @@ import {
   IsString,
 } from 'class-validator';
 
-export class CreateSphereSessionDto {
+export class CreateSphereSessionDTO {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
@@ -73,6 +73,6 @@ export class CreateSphereSessionDto {
   session_execution_batch_id?: number;
 }
 
-export class UpdateSphereSessionDto extends PartialType(
-  CreateSphereSessionDto,
+export class UpdateSphereSessionDTO extends PartialType(
+  CreateSphereSessionDTO,
 ) {}

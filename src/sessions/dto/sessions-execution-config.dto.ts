@@ -7,7 +7,7 @@ import {
   IsString,
 } from 'class-validator';
 
-export class SessionsExecutionConfigDto {
+export class SessionsExecutionConfigDTO {
   @ApiProperty()
   @IsNotEmpty()
   @IsNumber()
@@ -43,6 +43,6 @@ export class SessionsExecutionConfigDto {
   desktop_name: string;
 }
 
-export class UpdateSessionsExecutionConfigDto extends PartialType(
-  SessionsExecutionConfigDto,
+export class UpdateSessionsExecutionConfigDTO extends PartialType(
+  SessionsExecutionConfigDTO,
 ) {}
