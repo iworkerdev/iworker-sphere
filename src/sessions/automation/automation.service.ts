@@ -7,16 +7,7 @@ import {
   NotAcceptableException,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  chunk,
-  filter,
-  isArray,
-  map,
-  omit,
-  reduce,
-  sortBy,
-  toNumber,
-} from 'lodash';
+import { chunk, filter, isArray, map, reduce, sortBy, toNumber } from 'lodash';
 
 import { HttpService } from '@nestjs/axios';
 import { Logger } from '@nestjs/common';
