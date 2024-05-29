@@ -14,12 +14,17 @@ import {
   UpdateSphereSessionDTO,
 } from './dto/sphere-session.dto';
 
-import { EVENTS, ProfileWarmUpEvent } from './automation/events-config';
+import {
+  EVENTS,
+  ProfileWarmUpEvent,
+  WarmUpProfileEvent,
+} from '../events-config';
 
 import { SessionsService } from './sessions.service';
 import { AutomationService } from './automation/automation.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { find, map } from 'lodash';
+import { HandleCatchException } from 'src/utils';
 
 @Controller('sessions')
 export class SessionsController {

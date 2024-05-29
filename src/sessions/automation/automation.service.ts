@@ -33,9 +33,10 @@ import { Model } from 'mongoose';
 import {
   EVENTS,
   ProfileWarmUpEvent,
+  RecordProfileWarmUpEvent,
   StopSessionEvent,
   WarmUpProfileEvent,
-} from './events-config';
+} from '../../events-config';
 import { HandleCatchException, __delay__ } from 'src/utils';
 import { LoggerService } from 'src/logger/logger.service';
 
@@ -50,7 +51,7 @@ function extractSecondDomain(urls: string[]) {
         const targetUrl = urlParam.get('url');
         if (targetUrl) {
           const targetUrlObj = new URL(targetUrl);
-          return targetUrlObj.hostname;
+          return targetUrlObj.hostname || url;
         }
       } catch (error) {
         return null;
@@ -304,14 +305,19 @@ export class AutomationService {
 
       const { data } = response;
 
+      console.log({
+        data,
+      });
+
       if (data?.uuid) {
         const _s = await this.sessionsService.updateOne(_id, {
           status: 'ACTIVE',
           last_activity: new Date(),
         });
         return _s;
+      } else {
+        return null;
       }
-      return session;
     } catch (error) {
       console.error({
         message: `Error starting session ${_id} - ${error?.message}`,
@@ -387,7 +393,11 @@ export class AutomationService {
         }
       }
     } catch (error) {
-      throw new NotFoundException(error?.response?.data?.message);
+      throw new NotFoundException(
+        error?.response?.data
+          ? JSON.stringify(error?.response?.data)
+          : error.message,
+      );
     }
   }
 
@@ -493,28 +503,32 @@ export class AutomationService {
       domain: extractSecondDomain([link])[0],
     }));
 
-    return uniqBy(domains, 'domain')?.slice(0, 5);
+    return uniqBy(domains, 'domain')?.slice(0, 10);
   }
 
   @OnEvent(EVENTS.WARM_UP_SESSIONS)
   async warmUpSession(event: WarmUpProfileEvent) {
     const { session_id, debug_port, last_topic_of_search, mongo_id } =
       event.payload;
-    try {
-      const currentTopics = await this.sessionsService.getLastTopicsOfSearch();
-      const allTopics = reduce(
-        WebSearchTopics,
-        (acc, topics) => [...acc, ...topics],
-        [],
-      ).filter(
-        (topic) =>
-          topic !== last_topic_of_search && !currentTopics.includes(topic),
-      );
 
-      const topic = allTopics[Math.floor(Math.random() * allTopics.length)];
-      this.logger.log(
-        `WARM_UP_SESSION_STARTED: topic=${topic} - session_id=${session_id}`,
-      );
+    const __session__ = await this.sessionsService.findOne(mongo_id);
+
+    try {
+      const getTopicOfSearch = async () => {
+        const currentTopics =
+          await this.sessionsService.getLastTopicsOfSearch();
+        const allTopics = reduce(
+          WebSearchTopics,
+          (acc, topics) => [...acc, ...topics],
+          [],
+        ).filter(
+          (topic) =>
+            topic !== last_topic_of_search && !currentTopics.includes(topic),
+        );
+
+        const topic = allTopics[Math.floor(Math.random() * allTopics.length)];
+        return topic;
+      };
 
       const browser = await this.connectToBrowser(toNumber(debug_port));
       const visitedLinks = [];
@@ -557,94 +571,109 @@ export class AutomationService {
         }
       };
 
+      const topic_of_search_v1 = await getTopicOfSearch();
       // delay for 5 seconds
-      const linksToVisit = await this.getWebsiteLinksToScrape(topic);
+      const linksToVisit =
+        await this.getWebsiteLinksToScrape(topic_of_search_v1);
 
-      const startTimes = new Date().getTime();
+      const warm_up_end_time = new Date().getTime();
 
-      for (let i = 0; i < linksToVisit.length; i++) {
-        const link = linksToVisit[i];
-        try {
-          // Check if the page is still available
-          await browse(link.url);
-          this.logger.log(`WEBPAGE VISITED: ${link.domain}`);
-          await __delay__(3000); // Custom delay function
-        } catch (e) {
-          const error_log_payload = {
-            session_id: mongo_id,
-            message: 'ERROR visiting webpage',
-            log_type: 'ERROR',
-            error: e.message,
-            link,
-            verbose_error: e,
-          };
-          await this.loggerService.createSessionExecutionErrorLog(
-            `PAGE_VISIT_FAILED`,
-            error_log_payload,
-          );
+      const warm_up = async (links: any[]) => {
+        for (let i = 0; i < links.length; i++) {
+          if (visitedLinks.length >= 10) {
+            break;
+          }
 
-          // Retry logic
-          for (let retry = 0; retry < 3; retry++) {
-            await __delay__(2000); // Wait before retrying
-            try {
-              await browse(link.url);
-              this.logger.log(
-                `WEBPAGE VISITED on retry ${retry + 1}: ${link.domain}`,
-              );
-              await __delay__(3000); // Custom delay function
-              break; // Exit retry loop if successful
-            } catch (retryError) {
-              const retry_error_log_payload = {
-                session_id: mongo_id,
-                message: 'ERROR visiting webpage on retry',
-                error: retryError.message,
-                log_type: 'ERROR',
-                link,
-                verbose_error: retryError,
-              };
+          const link = links[i];
+          try {
+            // Check if the page is still available
+            await browse(link.url);
+            this.logger.log(`WEBPAGE VISITED: ${link.domain}`);
+            await __delay__(3000); // Custom delay function
+          } catch (e) {
+            const error_log_payload = {
+              session_id: mongo_id,
+              message: 'ERROR visiting webpage',
+              log_type: 'ERROR',
+              error: e.message,
+              link,
+              verbose_error: e,
+            };
+            await this.loggerService.createSessionExecutionErrorLog(
+              `PAGE_VISIT_FAILED`,
+              error_log_payload,
+            );
 
-              await this.loggerService.createSessionExecutionErrorLog(
-                `PAGE_VISIT_RETRY_FAILED`,
-                retry_error_log_payload,
-              );
+            // Retry logic
+            for (let retry = 0; retry < 3; retry++) {
+              await __delay__(2000); // Wait before retrying
+              try {
+                await browse(link.url);
+                this.logger.log(
+                  `WEBPAGE VISITED on retry ${retry + 1}: ${link.domain}`,
+                );
+                await __delay__(3000); // Custom delay function
+                break; // Exit retry loop if successful
+              } catch (retryError) {
+                const retry_error_log_payload = {
+                  session_id: mongo_id,
+                  message: 'ERROR visiting webpage on retry',
+                  error: retryError.message,
+                  log_type: 'ERROR',
+                  link,
+                  verbose_error: retryError,
+                };
+
+                await this.loggerService.createSessionExecutionErrorLog(
+                  `PAGE_VISIT_RETRY_FAILED`,
+                  retry_error_log_payload,
+                );
+              }
             }
           }
         }
+      };
+
+      await warm_up(linksToVisit);
+      //if links to visit is less than 10, try again
+
+      console.log({
+        visited_links_count: visitedLinks.length,
+      });
+
+      if (visitedLinks.length < 10) {
+        const topic_of_search_v2 = await getTopicOfSearch();
+        const linksToVisit_v2 =
+          await this.getWebsiteLinksToScrape(topic_of_search_v2);
+        await warm_up(linksToVisit_v2);
       }
 
-      const endTimes = new Date().getTime();
+      const warm_up_start_time = new Date().getTime();
 
       await this.sessionsService.updateOne(mongo_id, {
-        last_topic_of_search: topic,
+        last_topic_of_search: topic_of_search_v1,
         last_activity: new Date(),
       });
 
-      const stopSessionEvent = new StopSessionEvent({ session_id });
-      this.eventEmitter.emit(EVENTS.STOP_SESSION, stopSessionEvent);
-
-      const complete_log_payload = {
-        session_id: mongo_id,
-        message: `WARM_UP_SESSION_COMPLETED: topic=${topic} - session_id=${session_id} - no_of_links=${linksToVisit.length} - timeTaken=${(endTimes - startTimes) / 1000} seconds`,
-        error: '',
-        log_type: 'INFO',
-        link: {
-          url: linksToVisit?.map((l) => l.url).join(','),
-          domain: linksToVisit?.map((l) => l.domain).join(','),
-        },
-        meta: {
-          topic,
-          visited: {
-            domains: extractSecondDomain(visitedLinks),
-            count: visitedLinks.length,
-          },
-          timeTaken: (endTimes - startTimes) / 1000,
-        },
+      const warm_up_payload = {
+        team_name: __session__.team_name,
+        desktop_name: __session__.desktop_name,
+        desktop_id: __session__.desktop_id,
+        session_name: __session__.name,
+        session_id,
+        visited_links_count: visitedLinks.length,
+        visited_links_domains: map(extractSecondDomain(visitedLinks)),
+        execution_time_in_ms: warm_up_start_time - warm_up_end_time,
+        warm_up_end_time: new Date(warm_up_start_time),
+        warmup_start_time: new Date(warm_up_end_time),
+        user_id: __session__.user_id,
       };
 
-      await this.loggerService.createSessionExecutionLog(
-        `WARM_UP_SESSION_COMPLETED`,
-        complete_log_payload,
-      );
+      const recordWarmUpEvent = new RecordProfileWarmUpEvent(warm_up_payload);
+      this.eventEmitter.emit(EVENTS.RECORD_PROFILE_WARM_UP, recordWarmUpEvent);
+
+      const stopSessionEvent = new StopSessionEvent({ session_id });
+      this.eventEmitter.emit(EVENTS.STOP_SESSION, stopSessionEvent);
     } catch (error) {
       console.error(error);
     }

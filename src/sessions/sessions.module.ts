@@ -36,5 +36,6 @@ import { SessionsService } from './sessions.service';
   ],
   controllers: [SessionsController],
   providers: [SessionsService, AutomationService, Logger],
+  exports: [SessionsService, AutomationService],
 })
 export class SessionsModule {}
