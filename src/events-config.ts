@@ -1,10 +1,12 @@
-import { SphereSession } from '../schema';
+import { CreateProfileWarmUpDTO } from './iworker-sphere/dto';
+import { SphereSession } from './sessions/schema';
 
 export const EVENTS = {
   WARM_UP_SESSIONS: 'sessions.warmup',
   START_SESSION: 'session.start',
   STOP_SESSION: 'session.stop',
   PROFILE_WARM_UP: 'profile.warmup',
+  RECORD_PROFILE_WARM_UP: 'profile.warmup.record',
 };
 
 export class WarmUpProfileEvent {
@@ -15,9 +17,6 @@ export class WarmUpProfileEvent {
     mongo_id: string;
   };
   constructor(public session: SphereSession) {
-    console.log(
-      `session: mongo_id=${session?.id}_session_uuid=${session?.session_id}_debug_port_${session?.debug_port}_last_topic_of_search_${session?.last_topic_of_search}_name_${session?.name}`,
-    );
     this.payload = {
       mongo_id: session?.id,
       session_id: session?.session_id,
@@ -59,5 +58,12 @@ export class ProfileWarmUpEvent {
     this.payload = {
       profile_name: event.profile_name,
     };
+  }
+}
+
+export class RecordProfileWarmUpEvent {
+  public readonly payload: CreateProfileWarmUpDTO;
+  constructor(public event: CreateProfileWarmUpDTO) {
+    this.payload = event;
   }
 }
