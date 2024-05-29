@@ -33,7 +33,6 @@ export class IworkerSphereService {
   @OnEvent(EVENTS.RECORD_PROFILE_WARM_UP)
   async handleCreateProfileWarmUpEvent(event: RecordProfileWarmUpEvent) {
     try {
-      console.log('Event received', event);
       await this.createProfileWarmUp(event?.payload);
     } catch (error) {
       console.error('Error in handling event', error);
