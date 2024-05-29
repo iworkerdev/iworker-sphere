@@ -20,7 +20,7 @@ export class ProfileWarmUp extends mongoose.Document {
   @Prop({ required: true })
   session_name: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   session_id: string;
 
   @Prop({ required: true })
