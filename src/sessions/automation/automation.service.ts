@@ -201,7 +201,7 @@ export class AutomationService {
 
       const __sessions__ = response?.data as SphereApiSession[];
 
-      const session_chunks = chunk(__sessions__, 10);
+      const session_chunks = chunk(__sessions__, 5);
 
       const sessions_in_db = await this.sessionsService.findManyByDesktopId(
         activeDesktop?.uuid,
