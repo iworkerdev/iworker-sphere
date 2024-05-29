@@ -247,7 +247,7 @@ export class AutomationService {
               if (existingSession) {
                 const s_updated = await this.sessionsService.updateOne(
                   existingSession.id,
-                  omit(payload, ['session_execution_batch_id']),
+                  payload,
                 );
                 results.push(s_updated);
               } else {
