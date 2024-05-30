@@ -26,7 +26,7 @@ export class ProfileWarmUp extends mongoose.Document {
   @Prop({ required: true })
   visited_links_count: number;
 
-  @Prop({ required: true })
+  @Prop({ required: false })
   visited_links_domains: string[];
 
   @Prop({ required: true })
