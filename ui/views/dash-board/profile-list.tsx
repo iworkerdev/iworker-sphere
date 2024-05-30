@@ -44,6 +44,7 @@ interface Profile {
   last_topic_of_search: string
   createdAt: string
   updatedAt: string
+  last_run_success_rate: string
 }
 
 type Props = {
@@ -91,6 +92,7 @@ const ProfileListItem = ({ profile }: Props) => {
           ? formatDate(new Date(profile.last_activity), 'MMM dd, yyyy HH:mm')
           : 'N/A'}
       </Td>
+      <Td>{profile.last_run_success_rate}</Td>
       <Td>
         <Stack direction='row' spacing={1}>
           {profile.status === 'IDLE' ? (
@@ -192,6 +194,12 @@ export const ProfileList = ({
               <Th color={'gray.100'}>Profile name</Th>
               <Th color={'gray.100'}>Status</Th>
               <Th color={'gray.100'}>Last activity</Th>
+              <Th color={'gray.100'}>
+                <Text>Success Rate</Text>
+                <Text fontSize='xs' color='gray.500'>
+                  /10 web visits
+                </Text>
+              </Th>
               <Th color={'gray.100'}>Actions</Th>
             </Tr>
           </Thead>
