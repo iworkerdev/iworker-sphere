@@ -117,16 +117,6 @@ export class IworkerSphereService {
 
   async getSessionsForDesktop(desktopId: string) {
     try {
-      const desktops = await this.getDesktops();
-
-      const activeDesktop = desktops.active_desktop;
-
-      if (activeDesktop.uuid !== desktopId) {
-        await this.automationService.changeActiveDesktop(desktopId);
-      }
-
-      await this.automationService.syncSessions();
-
       const sessions =
         await this.sessionsService.findManyByDesktopId(desktopId);
 
