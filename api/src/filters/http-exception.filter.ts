@@ -28,6 +28,7 @@ export class HttpExceptionFilter<T extends HttpException>
 
     response.status(status).json({
       ...error,
+      success: false,
       statusCode: status,
       timestamp: new Date().toISOString(),
     });
