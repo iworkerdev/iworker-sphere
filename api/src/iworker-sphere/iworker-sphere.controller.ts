@@ -145,6 +145,7 @@ export class IworkerSphereController {
   async activateDesktop(@Param('desktop_id') desktop_id: string) {
     try {
       await this.automationService.changeActiveDesktop(desktop_id);
+      await this.automationService.syncSessions();
       return {
         uuid: desktop_id,
       };
