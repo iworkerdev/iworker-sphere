@@ -23,7 +23,7 @@ import { SessionsModule } from './sessions/sessions.module';
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
-        limit: 2,
+        limit: 100,
       },
     ]),
     MongooseModule.forRoot(GLOBAL_CONFIG.MONGODB_URI),

@@ -262,12 +262,6 @@ export class AutomationService {
           }
         }
       }
-
-      this.logEvent('SYNC_SESSIONS', {
-        count: results.length,
-        desktop: activeDesktop?.name,
-      });
-
       return results;
     } catch (error) {
       console.error({
@@ -320,7 +314,7 @@ export class AutomationService {
 
   @OnEvent(EVENTS.STOP_SESSION)
   async stopLinkenSphereSession(event: StopSessionEvent) {
-    const { session_id } = event.payload;
+    const { session_id, is_single_execution } = event.payload;
     try {
       const session = await this.sessionsService.findOneBySessionId(session_id);
       const activeDesktop = await this.getActiveDesktop();
@@ -347,6 +341,10 @@ export class AutomationService {
           session_execution_id: session.session_execution_id,
           status: _s.status,
         });
+
+        if (is_single_execution) {
+          return;
+        }
 
         const activeSessions =
           await this.sessionsService.findManyActiveByDesktopId(
@@ -502,6 +500,8 @@ export class AutomationService {
     const { session_id, debug_port, last_topic_of_search, mongo_id } =
       event.payload;
 
+    const is_single_execution = event?.options?.is_single_execution || false;
+
     const __session__ = await this.sessionsService.findOne(mongo_id);
 
     try {
@@ -570,8 +570,8 @@ export class AutomationService {
       const warm_up_end_time = new Date().getTime();
 
       const warm_up = async (links: any[]) => {
-        for (let i = 0; i < links.length; i++) {
-          if (visitedLinks.length >= 10) {
+        for (let i = 0; i < 7; i++) {
+          if (visitedLinks.length >= 7) {
             break;
           }
 
@@ -582,6 +582,13 @@ export class AutomationService {
             this.logger.log(`WEBPAGE VISITED: ${link.domain}`);
             await __delay__(3000); // Custom delay function
           } catch (e) {
+            if (
+              e.message ===
+              'Did not find any open pages in the browser, please open a page first'
+            ) {
+              break;
+            }
+
             const error_log_payload = {
               session_id: mongo_id,
               message: 'ERROR visiting webpage',
@@ -632,7 +639,7 @@ export class AutomationService {
         visited_links_count: visitedLinks.length,
       });
 
-      if (visitedLinks.length < 10) {
+      if (visitedLinks.length < 7) {
         const topic_of_search_v2 = await getTopicOfSearch();
         const linksToVisit_v2 =
           await this.getWebsiteLinksToScrape(topic_of_search_v2);
@@ -663,7 +670,10 @@ export class AutomationService {
       const recordWarmUpEvent = new RecordProfileWarmUpEvent(warm_up_payload);
       this.eventEmitter.emit(EVENTS.RECORD_PROFILE_WARM_UP, recordWarmUpEvent);
 
-      const stopSessionEvent = new StopSessionEvent({ session_id });
+      const stopSessionEvent = new StopSessionEvent({
+        session_id,
+        is_single_execution,
+      });
       this.eventEmitter.emit(EVENTS.STOP_SESSION, stopSessionEvent);
     } catch (error) {
       console.error(error);

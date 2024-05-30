@@ -16,13 +16,22 @@ export class WarmUpProfileEvent {
     last_topic_of_search: string;
     mongo_id: string;
   };
-  constructor(public session: SphereSession) {
+
+  public readonly options = {
+    is_single_execution: false,
+  };
+
+  constructor(
+    public session: SphereSession,
+    options?: { is_single_execution: boolean },
+  ) {
     this.payload = {
       mongo_id: session?.id,
       session_id: session?.session_id,
       debug_port: session?.debug_port,
       last_topic_of_search: session?.last_topic_of_search,
     };
+    this.options = options;
   }
 }
 
@@ -42,10 +51,14 @@ export class StartSessionEvent {
 export class StopSessionEvent {
   public readonly payload: {
     session_id: string;
+    is_single_execution?: boolean;
   };
-  constructor(public session: { session_id: string }) {
+  constructor(
+    public session: { session_id: string; is_single_execution?: boolean },
+  ) {
     this.payload = {
       session_id: session.session_id,
+      is_single_execution: session.is_single_execution || false,
     };
   }
 }
