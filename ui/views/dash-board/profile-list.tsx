@@ -198,7 +198,7 @@ export const ProfileList = ({
           size='md'
           colorScheme='red'
         >
-          <Text>Sync Profiles</Text>
+          <Text>Sync Profiles ({data?.length})</Text>
         </Button>
         {}
         <HStack justifyContent={'flex-end'} px={10}>
@@ -247,9 +247,14 @@ export const ProfileList = ({
           </Tbody>
           <Tfoot>
             <Tr>
-              <Th>To convert</Th>
-              <Th>into</Th>
-              <Th isNumeric>multiply by</Th>
+              {/* <Th>
+              <Checkbox size='sm' colorScheme='red'></Checkbox>\
+            </Th> */}
+              <Th>Profile name</Th>
+              <Th>Status</Th>
+              <Th>Last activity</Th>
+              <Th>Success Rate</Th>
+              <Th>Actions</Th>
             </Tr>
           </Tfoot>
         </Table>

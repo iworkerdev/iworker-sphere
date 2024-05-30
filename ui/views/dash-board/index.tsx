@@ -88,6 +88,7 @@ const DashBoardWrapper = ({
   }, [desktopsInActiveTeam])
 
   const handleWarmUpAll = async () => {
+    await handleActiveDesktopChange(activeDesktopId)
     setIsTriggeringWarmUp(true)
     try {
       const { data } = await apiClient.post(
@@ -101,7 +102,7 @@ const DashBoardWrapper = ({
     } catch (error) {
       console.error(error)
     } finally {
-      await new Promise(resolve => setTimeout(resolve, 5000))
+      await new Promise(resolve => setTimeout(resolve, 3000))
       setIsTriggeringWarmUp(false)
     }
   }
