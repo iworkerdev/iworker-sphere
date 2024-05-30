@@ -8,6 +8,7 @@ import {
   Button,
   Checkbox,
   HStack,
+  Heading,
   Spinner,
   Stack,
   Table,
@@ -137,6 +138,7 @@ type ProfileListProps = {
   isTriggeringWarmUp: boolean
   handleSyncProfiles: () => void
   isSyncingProfiles: boolean
+  desktop_name: string
 }
 
 export const ProfileList = ({
@@ -145,6 +147,7 @@ export const ProfileList = ({
   isTriggeringWarmUp,
   handleSyncProfiles,
   isSyncingProfiles,
+  desktop_name,
 }: ProfileListProps) => {
   const { data, error, isLoading, mutate } = useSWR(
     API_ENDPOINTS_CONFIG.getSessionsForDesktop(desktop_uuid),
@@ -198,9 +201,20 @@ export const ProfileList = ({
           size='md'
           colorScheme='red'
         >
-          <Text>Sync Profiles ({data?.length})</Text>
+          <Text>Sync Profiles</Text>
         </Button>
-        {}
+        <Stack
+          color='white'
+          spacing={2}
+          alignItems={'center'}
+          justifyContent={'center'}
+        >
+          <Text>{desktop_name}</Text>
+          <Text fontSize='sm' color='yellow.500'>
+            ({data?.length} Profile
+            {data?.length === 1 ? '' : 's'})
+          </Text>
+        </Stack>
         <HStack justifyContent={'flex-end'} px={10}>
           <Button onClick={handleRefresh} size='md' colorScheme='yellow'>
             <Text>Refresh</Text>

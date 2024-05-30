@@ -153,6 +153,7 @@ const DashBoardWrapper = ({
             handleSyncProfiles={() =>
               handleActiveDesktopChange(activeDesktop?.uuid || '')
             }
+            desktop_name={activeDesktop?.name || ''}
             isSyncingProfiles={isLoading}
           />
         )}
