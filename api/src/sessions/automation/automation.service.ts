@@ -635,11 +635,6 @@ export class AutomationService {
       };
 
       await warm_up(linksToVisit);
-      //if links to visit is less than 10, try again
-
-      console.log({
-        visited_links_count: visitedLinks.length,
-      });
 
       if (visitedLinks.length < L_COUNT) {
         const topic_of_search_v2 = await getTopicOfSearch();
