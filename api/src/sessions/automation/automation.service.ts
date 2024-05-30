@@ -504,6 +504,8 @@ export class AutomationService {
 
     const __session__ = await this.sessionsService.findOne(mongo_id);
 
+    const L_COUNT = 7;
+
     try {
       const getTopicOfSearch = async () => {
         const currentTopics =
@@ -570,8 +572,8 @@ export class AutomationService {
       const warm_up_end_time = new Date().getTime();
 
       const warm_up = async (links: any[]) => {
-        for (let i = 0; i < 7; i++) {
-          if (visitedLinks.length >= 7) {
+        for (let i = 0; i < L_COUNT; i++) {
+          if (visitedLinks.length >= L_COUNT) {
             break;
           }
 
@@ -639,7 +641,7 @@ export class AutomationService {
         visited_links_count: visitedLinks.length,
       });
 
-      if (visitedLinks.length < 7) {
+      if (visitedLinks.length < L_COUNT) {
         const topic_of_search_v2 = await getTopicOfSearch();
         const linksToVisit_v2 =
           await this.getWebsiteLinksToScrape(topic_of_search_v2);
@@ -648,8 +650,13 @@ export class AutomationService {
 
       const warm_up_start_time = new Date().getTime();
 
+      const percentage_of_links_visited = Math.floor(
+        (visitedLinks.length / L_COUNT) * 100,
+      );
+
       await this.sessionsService.updateOne(mongo_id, {
         last_topic_of_search: topic_of_search_v1,
+        last_run_success_rate: `${percentage_of_links_visited}%`,
         last_activity: new Date(),
       });
 
