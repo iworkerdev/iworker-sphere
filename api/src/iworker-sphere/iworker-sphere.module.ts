@@ -1,5 +1,6 @@
 import { ProfileWarmUp, ProfileWarmUpSchema } from './schema';
 
+import { HttpModule } from '@nestjs/axios';
 import { IworkerSphereController } from './iworker-sphere.controller';
 import { IworkerSphereService } from './iworker-sphere.service';
 import { Module } from '@nestjs/common';
@@ -15,6 +16,7 @@ import { SessionsModule } from 'src/sessions/sessions.module';
       },
     ]),
     SessionsModule,
+    HttpModule,
   ],
   controllers: [IworkerSphereController],
   providers: [IworkerSphereService],

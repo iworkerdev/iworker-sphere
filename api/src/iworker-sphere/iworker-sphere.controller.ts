@@ -106,4 +106,35 @@ export class IworkerSphereController {
       HandleCatchException(error);
     }
   }
+
+  @Get('teams')
+  async getTeams() {
+    try {
+      const teams = await this.iworkerSphereService.getTeams();
+      return teams;
+    } catch (error) {
+      HandleCatchException(error);
+    }
+  }
+
+  @Get('desktops')
+  async getDesktops() {
+    try {
+      const desktops = await this.iworkerSphereService.getDesktops();
+      return desktops;
+    } catch (error) {
+      HandleCatchException(error);
+    }
+  }
+
+  @Get('desktop/:desktop_id/sessions')
+  async getDesktopSessions(@Param('desktop_id') desktop_id: string) {
+    try {
+      const sessions =
+        await this.iworkerSphereService.getSessionsForDesktop(desktop_id);
+      return sessions;
+    } catch (error) {
+      HandleCatchException(error);
+    }
+  }
 }
