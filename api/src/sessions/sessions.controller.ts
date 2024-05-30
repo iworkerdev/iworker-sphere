@@ -14,17 +14,13 @@ import {
   UpdateSphereSessionDTO,
 } from './dto/sphere-session.dto';
 
-import {
-  EVENTS,
-  ProfileWarmUpEvent,
-  WarmUpProfileEvent,
-} from '../events-config';
+import { EVENTS, ProfileWarmUpEvent } from '../events-config';
 
 import { SessionsService } from './sessions.service';
 import { AutomationService } from './automation/automation.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { find, map } from 'lodash';
-import { HandleCatchException } from 'src/utils';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('sessions')
 export class SessionsController {
@@ -74,6 +70,7 @@ export class SessionsController {
     };
   }
 
+  @Throttle({ default: { limit: 1, ttl: 15000 } })
   @Get('automation/sync-sessions')
   async syncSessions() {
     const response = await this.automationService.syncSessions();
@@ -84,12 +81,13 @@ export class SessionsController {
       response,
     };
   }
-
+  @Throttle({ default: { limit: 1, ttl: 60000 } })
   @Post('automation/bulk-profile-warm-up')
   async bulkProfileWarmUp(@Body('profiles') profiles: string[]) {
     return await this.automationService.bulkWarmUp(profiles);
   }
 
+  @Throttle({ default: { limit: 1, ttl: 60000 } })
   @Post('automation/trigger-warm-up-execution')
   async triggerWarmUpExecutionForActiveDesktop(
     @Body('profile_name') profile_name: string,
