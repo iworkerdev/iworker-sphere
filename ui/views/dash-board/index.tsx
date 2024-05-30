@@ -149,6 +149,10 @@ const DashBoardWrapper = ({
             desktop_uuid={activeDesktop?.uuid || ''}
             handleWarmUpAll={handleWarmUpAll}
             isTriggeringWarmUp={isTriggeringWarmUp}
+            handleSyncProfiles={() =>
+              handleActiveDesktopChange(activeDesktop?.uuid || '')
+            }
+            isSyncingProfiles={isLoading}
           />
         )}
       </Stack>

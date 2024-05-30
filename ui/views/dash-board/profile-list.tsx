@@ -135,12 +135,16 @@ type ProfileListProps = {
   desktop_uuid: string
   handleWarmUpAll: () => void
   isTriggeringWarmUp: boolean
+  handleSyncProfiles: () => void
+  isSyncingProfiles: boolean
 }
 
 export const ProfileList = ({
   desktop_uuid,
   handleWarmUpAll,
   isTriggeringWarmUp,
+  handleSyncProfiles,
+  isSyncingProfiles,
 }: ProfileListProps) => {
   const { data, error, isLoading, mutate } = useSWR(
     API_ENDPOINTS_CONFIG.getSessionsForDesktop(desktop_uuid),
@@ -186,22 +190,34 @@ export const ProfileList = ({
 
   return (
     <Stack>
-      <HStack justifyContent={'flex-end'} px={10}>
-        <Button onClick={handleRefresh} size='md' colorScheme='yellow'>
-          <Text>Refresh</Text>
+      <HStack justifyContent={'space-between'}>
+        <Button
+          isLoading={isSyncingProfiles}
+          onClick={isDisabled ? () => {} : handleSyncProfiles}
+          cursor={isDisabled ? 'not-allowed' : 'pointer'}
+          size='md'
+          colorScheme='red'
+        >
+          <Text>Sync Profiles</Text>
         </Button>
         {}
-        <Button
-          onClick={handleClick}
-          isLoading={isTriggeringWarmUp || isLoading}
-          disabled={true}
-          size='md'
-          cursor={isDisabled ? 'not-allowed' : 'pointer'}
-          colorScheme='blue'
-          _disabled={{ cursor: 'not-allowed', bg: 'gray.300' }}
-        >
-          <Text>Warm Up All</Text>
-        </Button>
+        <HStack justifyContent={'flex-end'} px={10}>
+          <Button onClick={handleRefresh} size='md' colorScheme='yellow'>
+            <Text>Refresh</Text>
+          </Button>
+          {}
+          <Button
+            onClick={handleClick}
+            isLoading={isTriggeringWarmUp || isLoading}
+            disabled={true}
+            size='md'
+            cursor={isDisabled ? 'not-allowed' : 'pointer'}
+            colorScheme='blue'
+            _disabled={{ cursor: 'not-allowed', bg: 'gray.300' }}
+          >
+            <Text>Warm Up All</Text>
+          </Button>
+        </HStack>
       </HStack>
 
       <TableContainer>
