@@ -71,6 +71,11 @@ export class CreateSphereSessionDTO {
   @ApiProperty()
   @IsNumber()
   session_execution_batch_id?: number;
+
+  @ApiProperty()
+  @IsNumber()
+  @IsOptional()
+  last_run_success_rate?: string;
 }
 
 export class UpdateSphereSessionDTO extends PartialType(

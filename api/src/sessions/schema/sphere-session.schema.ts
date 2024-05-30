@@ -46,6 +46,9 @@ export class SphereSession extends mongoose.Document {
 
   @Prop({ required: false, default: null })
   last_topic_of_search?: string;
+
+  @Prop({ required: false, default: null })
+  last_run_success_rate?: string;
 }
 
 export const SphereSessionSchema = SchemaFactory.createForClass(SphereSession);
