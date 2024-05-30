@@ -236,7 +236,20 @@ export const ProfileList = ({
 
       <TableContainer>
         <Table variant='simple'>
-          <TableCaption>Imperial to metric conversion factors</TableCaption>
+          <TableCaption>
+            <Stack
+              color='white'
+              spacing={2}
+              alignItems={'center'}
+              justifyContent={'center'}
+            >
+              <Text fontSize='sm' color='yellow.500'>
+                ({data?.length} Profile
+                {data?.length === 1 ? '' : 's'})
+              </Text>
+              <Text>{desktop_name}</Text>
+            </Stack>
+          </TableCaption>
           <Thead>
             <Tr>
               {/* <Th color={'gray.100'}>
