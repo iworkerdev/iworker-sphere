@@ -98,12 +98,10 @@ const DashBoardWrapper = ({
       )
       mutate(API_ENDPOINTS_CONFIG.getDesktops)
       mutate(API_ENDPOINTS_CONFIG.getSessionsForDesktop(activeDesktopId))
-
-      //delay for 5 seconds
-      await new Promise(resolve => setTimeout(resolve, 5000))
     } catch (error) {
       console.error(error)
     } finally {
+      await new Promise(resolve => setTimeout(resolve, 5000))
       setIsTriggeringWarmUp(false)
     }
   }

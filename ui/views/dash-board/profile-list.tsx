@@ -20,11 +20,13 @@ import {
   Th,
   Thead,
   Tr,
+  useToast,
 } from '@chakra-ui/react'
 import { ErrorAlert, LoadingSpinner } from '@/components'
+import React, { useMemo } from 'react'
 import useSWR, { mutate } from 'swr'
 
-import React from 'react'
+import { find } from 'lodash'
 import { formatDate } from 'date-fns'
 
 interface Profile {
@@ -146,6 +148,8 @@ export const ProfileList = ({
     SWR_CONFIG(10000, false),
   )
 
+  const toast = useToast()
+
   if (isLoading) {
     return <LoadingSpinner />
   }
@@ -159,12 +163,25 @@ export const ProfileList = ({
     )
   }
 
-  const hasActiveProfiles = data.some(
-    (profile: Profile) => profile.status === 'ACTIVE',
-  )
-
   const handleRefresh = () => {
     mutate()
+  }
+
+  const isDisabled = data?.length === 0 || find(data, { status: 'ACTIVE' })
+
+  const handleClick = () => {
+    isDisabled
+      ? toast({
+          title:
+            data?.length === 0
+              ? 'No profiles to warm up'
+              : 'Please stop all active profiles before warming up all profiles',
+          status: 'warning',
+          duration: 3000,
+          isClosable: true,
+          position: 'top-right',
+        })
+      : handleWarmUpAll()
   }
 
   return (
@@ -173,11 +190,15 @@ export const ProfileList = ({
         <Button onClick={handleRefresh} size='md' colorScheme='yellow'>
           <Text>Refresh</Text>
         </Button>
+        {}
         <Button
-          onClick={handleWarmUpAll}
-          disabled={isLoading || hasActiveProfiles || isTriggeringWarmUp}
+          onClick={handleClick}
+          isLoading={isTriggeringWarmUp || isLoading}
+          disabled={true}
           size='md'
+          cursor={isDisabled ? 'not-allowed' : 'pointer'}
           colorScheme='blue'
+          _disabled={{ cursor: 'not-allowed', bg: 'gray.300' }}
         >
           <Text>Warm Up All</Text>
         </Button>
