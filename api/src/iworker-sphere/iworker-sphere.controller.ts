@@ -46,7 +46,9 @@ export class IworkerSphereController {
         await this.automationService.startLinkenSphereSession(session.id);
 
       if (startedSessionInstance) {
-        const event = new WarmUpProfileEvent(session);
+        const event = new WarmUpProfileEvent(session, {
+          is_single_execution: true,
+        });
         this.eventEmitter.emit(EVENTS.WARM_UP_SESSIONS, event);
         return {
           message:
@@ -77,6 +79,7 @@ export class IworkerSphereController {
 
       const stopSessionEvent = new StopSessionEvent({
         session_id: session.session_id,
+        is_single_execution: true,
       });
       this.eventEmitter.emit(EVENTS.STOP_SESSION, stopSessionEvent);
 
@@ -133,6 +136,18 @@ export class IworkerSphereController {
       const sessions =
         await this.iworkerSphereService.getSessionsForDesktop(desktop_id);
       return sessions;
+    } catch (error) {
+      HandleCatchException(error);
+    }
+  }
+
+  @Get('desktop/:desktop_id/activate')
+  async activateDesktop(@Param('desktop_id') desktop_id: string) {
+    try {
+      await this.automationService.changeActiveDesktop(desktop_id);
+      return {
+        uuid: desktop_id,
+      };
     } catch (error) {
       HandleCatchException(error);
     }
