@@ -196,8 +196,7 @@ export const ProfileList = ({
       <HStack justifyContent={'space-between'}>
         <Button
           isLoading={isSyncingProfiles}
-          onClick={isDisabled ? () => {} : handleSyncProfiles}
-          cursor={isDisabled ? 'not-allowed' : 'pointer'}
+          onClick={handleSyncProfiles}
           size='md'
           colorScheme='red'
         >
@@ -219,7 +218,6 @@ export const ProfileList = ({
           <Button onClick={handleRefresh} size='md' colorScheme='yellow'>
             <Text>Refresh</Text>
           </Button>
-          {}
           <Button
             onClick={handleClick}
             isLoading={isTriggeringWarmUp || isLoading}
