@@ -42,7 +42,7 @@ const DashboardCollectionContent: FC<DashboardCollectionContentProps> = ({
       desktops={desktops}
       activeDesktopId={active_desktop?.uuid}
       activeTeam={activeTeam || ''}
-      handleActiveDesktopChange={() => {}}
+      handleActiveDesktopChange={handleActiveDesktopChange}
     >
       <HStack justifyContent={'space-between'} w={'full'} px={2}>
         <Text fontSize='xl' color={'gray.100'}>
