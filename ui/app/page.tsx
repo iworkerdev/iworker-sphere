@@ -1,9 +1,9 @@
-import { DashBoard } from '@/views/dash-board'
+import { DashboardCollection } from '@/views/dashboard-collection'
 
 export default function Home() {
   return (
     <div>
-      <DashBoard />
+      <DashboardCollection />
     </div>
   )
 }
