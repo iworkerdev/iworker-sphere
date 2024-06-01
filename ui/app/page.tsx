@@ -1,9 +1,9 @@
-import { DashboardCollection } from '@/views/dashboard-collection'
+import { FocusedDesktopView } from '@/views/focused-desktop-view'
 
 export default function Home() {
   return (
     <div>
-      <DashboardCollection />
+      <FocusedDesktopView />
     </div>
   )
 }

@@ -1,31 +1,16 @@
-import {
-  Avatar,
-  Box,
-  Button,
-  Flex,
-  HStack,
-  IconButton,
-  Menu,
-  MenuButton,
-  MenuDivider,
-  MenuItem,
-  MenuList,
-  Stack,
-  useColorModeValue,
-  useDisclosure,
-} from '@chakra-ui/react'
+import { Box, Flex, HStack, useColorModeValue } from '@chakra-ui/react'
 
 import { Link } from '@chakra-ui/next-js'
 import { ReactNode } from 'react'
 
 const Links = [
   {
-    name: 'Desktop Collections',
+    name: 'Focused View',
     url: '/',
   },
   {
-    name: 'Focused View',
-    url: '/focused',
+    name: 'Desktop Collections',
+    url: '/collections',
   },
 ]
 
