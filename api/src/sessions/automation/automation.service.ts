@@ -504,7 +504,7 @@ export class AutomationService {
 
     const __session__ = await this.sessionsService.findOne(mongo_id);
 
-    const L_COUNT = 7;
+    const L_COUNT = 5;
 
     try {
       const getTopicOfSearch = async () => {
@@ -796,9 +796,6 @@ export class AutomationService {
   async executeProfileWarmUpSequence(desktop_id: string, desktop_name: string) {
     await this.changeActiveDesktop(desktop_id);
 
-    //wait for 90 seconds
-    await __delay__(90000);
-
     const event = new ProfileWarmUpEvent({
       profile_name: desktop_name,
     });
@@ -835,6 +832,7 @@ export class AutomationService {
         {
           'desktop_profiles.$[element].status':
             ProfileWarmUpSequenceStatus.COMPLETED,
+          'desktop_profiles.$[element].finished_at': new Date(),
         },
         {
           arrayFilters: [{ 'element.desktop_id': current_desktop_id }],
@@ -858,11 +856,15 @@ export class AutomationService {
         sequence.id,
         {
           'desktop_profiles.$[element].status': 'RUNNING',
+          'desktop_profiles.$[element].started_at': new Date(),
         },
         {
           arrayFilters: [{ 'element.desktop_id': nextDesktop.desktop_id }],
         },
       );
+
+      //wait for 90 seconds
+      await __delay__(90000);
 
       await this.executeProfileWarmUpSequence(
         nextDesktop.desktop_id,
@@ -943,6 +945,7 @@ export class AutomationService {
           sequence.id,
           {
             'desktop_profiles.$[element].status': 'RUNNING',
+            'desktop_profiles.$[element].started_at': new Date(),
           },
           {
             arrayFilters: [{ 'element.desktop_id': desktop.desktop_id }],
