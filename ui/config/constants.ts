@@ -51,4 +51,5 @@ export const API_ENDPOINTS_CONFIG = {
   warmUpProfile: '/iworker-sphere/session/wam-up',
   endWarmUp: '/iworker-sphere/session/stop',
   warmUpAllProfiles: '/sessions/automation/trigger-warm-up-execution',
+  bulkWarmUpDesktops: '/sessions/automation/bulk-profile-warm-up',
 }
