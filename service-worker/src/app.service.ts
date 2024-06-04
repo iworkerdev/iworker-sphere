@@ -95,7 +95,7 @@ export class AppService {
       const config = {
         method: 'post',
         maxBodyLength: Infinity,
-        url: 'http://localhost:8585/notifications/send-email',
+        url: 'https://ba.iworker-apps.me/notifications/send-email',
         headers: {
           'Content-Type': 'application/json',
         },
