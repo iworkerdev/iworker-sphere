@@ -1,13 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
-
 import { AppService } from './app.service';
 
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get('health')
-  getHello(): { status: string; timestamp: string } {
-    return this.appService.getAppHealth();
+  @Get()
+  async getHello(): Promise<{ status: string; timestamp: string }> {
+    return await this.appService.getAppHealth();
   }
 }
