@@ -560,7 +560,7 @@ export class AutomationService {
           const visited = await Promise.all([
             _page_.goto(url, {
               waitUntil: 'load',
-              timeout: 15000,
+              timeout: 45000,
             }),
             // page.waitForNavigation(),
           ]);
@@ -570,7 +570,7 @@ export class AutomationService {
           const visited = await Promise.all([
             page.goto(url, {
               waitUntil: 'load',
-              timeout: 15000,
+              timeout: 45000,
             }),
             // page.waitForNavigation(),
           ]);
