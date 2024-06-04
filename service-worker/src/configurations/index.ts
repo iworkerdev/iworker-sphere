@@ -18,10 +18,10 @@ const config = {
     MONGODB_URI: 'mongodb://localhost:27017/db-linken-sphere-development',
   },
   staging: {
-    MONGODB_URI: `${process.env.MONGODB_URI}/db-linken-sphere-staging?tls=true&authSource=admin&retryWrites=true&w=majority`,
+    MONGODB_URI: `${process.env.MONGODB_URI}/db-linken-sphere-staging-instance-two?tls=true&authSource=admin&retryWrites=true&w=majority`,
   },
   production: {
-    MONGODB_URI: `${process.env.MONGODB_URI}/db-linken-sphere-production?tls=true&authSource=admin&retryWrites=true&w=majority`,
+    MONGODB_URI: `${process.env.MONGODB_URI}/db-linken-sphere-prod-instance-two?tls=true&authSource=admin&retryWrites=true&w=majority`,
   },
 };
 export const GLOBAL_CONFIG = merge(common, config[PLATFORM_ENVIRONMENT]);

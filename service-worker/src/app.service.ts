@@ -10,7 +10,7 @@ const EVENTS = {
   NOTIFY_SERVICE_DOWN_TIME: 'notify_service_down_time',
 };
 
-const SERVICE_ID = '8585-linken-sphere-automation-service',
+const SERVICE_ID = '8586-02-LSAS-SERVER-11',
   MAX_NOTIFICATIONS = 4,
   DOWN_TIME_INTERVALS = {
     _5_MINUTES: 300000,
@@ -73,15 +73,14 @@ export class AppService {
     const status = await this.getSphereHealth();
     if (status.status === 'down') {
       const data = JSON.stringify({
-        to: ['iworker.developer@gmail.com'],
+        to: ['iworker.developer@gmail.com', "johncmiles2@gmail.com"],
         html: `
         Hello, Team, 
         <br>
         <br>
-        The LinkenSphere automation service tool is currently experiencing a downtime. 
+        The LinkenSphere automation service tool on Server 11 - is currently experiencing a downtime. 
         <br>
         Kindly log in to the VM and re-start the service.
-
         <br>
         <br>
         <br>
