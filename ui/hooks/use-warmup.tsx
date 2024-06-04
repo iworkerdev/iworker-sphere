@@ -62,7 +62,6 @@ export const useWarmup = (desktops: Desktop[], activeDesktop_id: string) => {
   }, [desktopsInActiveTeam])
 
   const handleWarmUpAll = async () => {
-    await handleActiveDesktopChange(activeDesktopId)
     setIsTriggeringWarmUp(true)
     try {
       const { data } = await apiClient.post(
