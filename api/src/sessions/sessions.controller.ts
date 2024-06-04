@@ -62,7 +62,7 @@ export class SessionsController {
 
   @Get('automation/end-sessions')
   endSessions() {
-    this.automationService.endSessions();
+    this.automationService.end_all_active_sessions();
     return {
       event: 'end-sessions',
       received: true,

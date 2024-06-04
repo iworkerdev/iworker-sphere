@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import * as puppeteer from 'puppeteer-core';
+import * as puppeteer from 'puppeteer';
 
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import {
@@ -312,6 +312,27 @@ export class AutomationService {
     }
   }
 
+  async stop_session(session_id: string) {
+    try {
+      const response = await this.httpService.axiosRef.post(
+        `${LINKEN_SHPERE_URL}/stop`,
+        {
+          uuid: session_id,
+        },
+      );
+
+      const { data } = response;
+
+      return data;
+    } catch (error) {
+      console.error({
+        message: `Error stopping session ${session_id} - ${error?.message}`,
+        error: error?.response?.data || error?.message,
+      });
+      return null;
+    }
+  }
+
   @OnEvent(EVENTS.STOP_SESSION)
   async stopLinkenSphereSession(event: StopSessionEvent) {
     const { session_id, is_single_execution } = event.payload;
@@ -323,14 +344,7 @@ export class AutomationService {
           activeDesktop?.uuid,
         );
 
-      const response = await this.httpService.axiosRef.post(
-        `${LINKEN_SHPERE_URL}/stop`,
-        {
-          uuid: session.session_id,
-        },
-      );
-
-      const { data } = response;
+      const data = await this.stop_session(session_id);
 
       if (data) {
         const _s = await this.sessionsService.updateOne(session.id, {
@@ -361,32 +375,35 @@ export class AutomationService {
           highestExecutionIdInExecutionBatch >= highestExecutionId;
 
         if (!isLastSession && activeSessions.length === 0) {
-          const e = new ProfileWarmUpEvent({
-            profile_name: activeDesktop?.name,
-          });
-          this.eventEmitter.emit(EVENTS.PROFILE_WARM_UP, e);
           console.log({
             message: `Starting sessions for desktop ${activeDesktop?.name} New Execution Batch ${session?.session_execution_batch_id + 1}`,
             highestExecutionId,
             highestExecutionIdInExecutionBatch,
           });
-        } else if (isLastSession && activeSessions.length === 0) {
-          console.log({
-            message: `End Of Warmup for profile ${activeDesktop?.name}`,
-            highestExecutionId,
-            highestExecutionIdInExecutionBatch,
+
+          const e = new ProfileWarmUpEvent({
+            profile_name: activeDesktop?.name,
           });
+          this.eventEmitter.emit(EVENTS.PROFILE_WARM_UP, e);
+        } else if (isLastSession && activeSessions.length === 0) {
           try {
             this.executeNextProfileSequenceDesktop(session.desktop_id);
-          } catch (error) {}
+            console.log({
+              message: `End Of Warmup for profile ${activeDesktop?.name}`,
+              highestExecutionId,
+              highestExecutionIdInExecutionBatch,
+            });
+          } catch (error) {
+            console.error(error);
+          }
         }
       }
     } catch (error) {
-      throw new NotFoundException(
-        error?.response?.data
-          ? JSON.stringify(error?.response?.data)
-          : error.message,
-      );
+      await this.stop_session(session_id);
+      console.error({
+        message: `Error stopping session ${session_id} - ${error?.message}`,
+        error: error?.response?.data || error?.message,
+      });
     }
   }
 
@@ -423,17 +440,18 @@ export class AutomationService {
     this.logEvent('START_SESSIONS', { count });
   }
 
-  async endSessions() {
-    const sessions = await this.sessionsService.findManyActiveByUserId();
+  async end_all_active_sessions() {
+    const sessions = await this.getRunningSessions();
 
     for (let i = 0; i < sessions.length; i++) {
       const session = sessions[i];
 
-      if (session?.id) {
-        const stopSessionEvent = new StopSessionEvent({
-          session_id: session.session_id,
-        });
-        this.eventEmitter.emit(EVENTS.STOP_SESSION, stopSessionEvent);
+      if (session?.uuid) {
+        try {
+          await this.stop_session(session?.uuid);
+        } catch (error) {
+          console.log(error);
+        }
       }
     }
 
@@ -712,7 +730,7 @@ export class AutomationService {
   @OnEvent(EVENTS.PROFILE_WARM_UP)
   async handleProfileWarmUpEvent(event: ProfileWarmUpEvent) {
     const { profile_name } = event.payload;
-    await this.syncSessions();
+    await this.end_all_active_sessions();
     await this.executeWarmUpForSessionsForActiveDesktop(profile_name);
   }
 
@@ -863,8 +881,8 @@ export class AutomationService {
         },
       );
 
-      //wait for 90 seconds
-      await __delay__(90000);
+      //wait for 2 minutes before starting the next desktop
+      await __delay__(120000);
 
       await this.executeProfileWarmUpSequence(
         nextDesktop.desktop_id,
