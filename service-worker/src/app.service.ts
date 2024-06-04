@@ -73,7 +73,7 @@ export class AppService {
     const status = await this.getSphereHealth();
     if (status.status === 'down') {
       const data = JSON.stringify({
-        to: ['iworker.developer@gmail.com'],
+        to: ['iworker.developer@gmail.com', 'johncmiles2@gmail.com'],
         html: `
         Hello, Team, 
         <br>
