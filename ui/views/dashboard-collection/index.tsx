@@ -1,12 +1,12 @@
 'use client'
 
-import { API_ENDPOINTS_CONFIG, apiClient, fetcher } from '@/config/constants'
+import { API_ENDPOINTS_CONFIG, fetcher } from '@/config/constants'
 import { Accordion, Container, HStack, Text } from '@chakra-ui/react'
 import { Desktop, MainLayout, SideBarItems } from '@/layouts/main.layout'
 import { ErrorAlert, LoadingSpinner } from '@/components'
-import React, { useMemo, useState } from 'react'
-import { find, keys, map } from 'lodash'
-import useSWR, { mutate } from 'swr'
+import React from 'react'
+import { keys, map } from 'lodash'
+import useSWR from 'swr'
 
 import { DesktopItem } from './desktop-item'
 import { FC } from 'react'
