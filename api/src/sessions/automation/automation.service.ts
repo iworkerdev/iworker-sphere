@@ -344,58 +344,56 @@ export class AutomationService {
           activeDesktop?.uuid,
         );
 
-      const data = await this.stop_session(session_id);
+      await this.stop_session(session_id);
 
-      if (data) {
-        const _s = await this.sessionsService.updateOne(session.id, {
-          status: 'IDLE',
+      const _s = await this.sessionsService.updateOne(session.id, {
+        status: 'IDLE',
+      });
+      this.logEvent('STOP_SESSION', {
+        session_id: session.session_id,
+        session_execution_id: session.session_execution_id,
+        status: _s.status,
+      });
+
+      if (is_single_execution) {
+        return;
+      }
+
+      const activeSessions =
+        await this.sessionsService.findManyActiveByDesktopId(
+          session.desktop_id,
+        );
+
+      const highestExecutionIdInExecutionBatch =
+        await this.sessionsService.getHighestExecutionIdInExecutionBatch(
+          session?.session_execution_batch_id,
+          session?.desktop_id,
+        );
+
+      const isLastSession =
+        highestExecutionIdInExecutionBatch >= highestExecutionId;
+
+      if (!isLastSession && activeSessions.length === 0) {
+        console.log({
+          message: `Starting sessions for desktop ${activeDesktop?.name} New Execution Batch ${session?.session_execution_batch_id + 1}`,
+          highestExecutionId,
+          highestExecutionIdInExecutionBatch,
         });
-        this.logEvent('STOP_SESSION', {
-          session_id: session.session_id,
-          session_execution_id: session.session_execution_id,
-          status: _s.status,
+
+        const e = new ProfileWarmUpEvent({
+          profile_name: activeDesktop?.name,
         });
-
-        if (is_single_execution) {
-          return;
-        }
-
-        const activeSessions =
-          await this.sessionsService.findManyActiveByDesktopId(
-            session.desktop_id,
-          );
-
-        const highestExecutionIdInExecutionBatch =
-          await this.sessionsService.getHighestExecutionIdInExecutionBatch(
-            session?.session_execution_batch_id,
-            session?.desktop_id,
-          );
-
-        const isLastSession =
-          highestExecutionIdInExecutionBatch >= highestExecutionId;
-
-        if (!isLastSession && activeSessions.length === 0) {
+        this.eventEmitter.emit(EVENTS.PROFILE_WARM_UP, e);
+      } else if (isLastSession && activeSessions.length === 0) {
+        try {
+          this.executeNextProfileSequenceDesktop(session.desktop_id);
           console.log({
-            message: `Starting sessions for desktop ${activeDesktop?.name} New Execution Batch ${session?.session_execution_batch_id + 1}`,
+            message: `End Of Warmup for profile ${activeDesktop?.name}`,
             highestExecutionId,
             highestExecutionIdInExecutionBatch,
           });
-
-          const e = new ProfileWarmUpEvent({
-            profile_name: activeDesktop?.name,
-          });
-          this.eventEmitter.emit(EVENTS.PROFILE_WARM_UP, e);
-        } else if (isLastSession && activeSessions.length === 0) {
-          try {
-            this.executeNextProfileSequenceDesktop(session.desktop_id);
-            console.log({
-              message: `End Of Warmup for profile ${activeDesktop?.name}`,
-              highestExecutionId,
-              highestExecutionIdInExecutionBatch,
-            });
-          } catch (error) {
-            console.error(error);
-          }
+        } catch (error) {
+          console.error(error);
         }
       }
     } catch (error) {
@@ -562,7 +560,7 @@ export class AutomationService {
           const visited = await Promise.all([
             _page_.goto(url, {
               waitUntil: 'load',
-              timeout: 600000,
+              timeout: 15000,
             }),
             // page.waitForNavigation(),
           ]);
@@ -572,7 +570,7 @@ export class AutomationService {
           const visited = await Promise.all([
             page.goto(url, {
               waitUntil: 'load',
-              timeout: 60000,
+              timeout: 15000,
             }),
             // page.waitForNavigation(),
           ]);
