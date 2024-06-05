@@ -5,12 +5,13 @@ import { Cron } from '@nestjs/schedule';
 import { ServiceNotifications } from './schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { VM_NAME } from './configurations';
 
 const EVENTS = {
   NOTIFY_SERVICE_DOWN_TIME: 'notify_service_down_time',
 };
 
-const SERVICE_ID = '8586-02-LSAS-SERVER-11',
+const SERVICE_ID = `${VM_NAME}-linken-sphere-automation-service`,
   MAX_NOTIFICATIONS = 4,
   DOWN_TIME_INTERVALS = {
     _5_MINUTES: 300000,
@@ -79,7 +80,7 @@ export class AppService {
         Hello, Team, 
         <br>
         <br>
-        The LinkenSphere automation service tool on Server 11 - is currently experiencing a downtime. 
+        The LinkenSphere automation service tool  on ${VM_NAME} is currently experiencing a downtime. 
         <br>
         Kindly log in to the VM and re-start the service.
         <br>

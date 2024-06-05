@@ -560,7 +560,7 @@ export class AutomationService {
           const visited = await Promise.all([
             _page_.goto(url, {
               waitUntil: 'load',
-              timeout: 15000,
+              timeout: 45000,
             }),
             // page.waitForNavigation(),
           ]);
@@ -570,7 +570,7 @@ export class AutomationService {
           const visited = await Promise.all([
             page.goto(url, {
               waitUntil: 'load',
-              timeout: 15000,
+              timeout: 45000,
             }),
             // page.waitForNavigation(),
           ]);
@@ -728,7 +728,7 @@ export class AutomationService {
   @OnEvent(EVENTS.PROFILE_WARM_UP)
   async handleProfileWarmUpEvent(event: ProfileWarmUpEvent) {
     const { profile_name } = event.payload;
-    await this.end_all_active_sessions();
+    // await this.end_all_active_sessions();
     await this.executeWarmUpForSessionsForActiveDesktop(profile_name);
   }
 
