@@ -728,7 +728,7 @@ export class AutomationService {
   @OnEvent(EVENTS.PROFILE_WARM_UP)
   async handleProfileWarmUpEvent(event: ProfileWarmUpEvent) {
     const { profile_name } = event.payload;
-    await this.end_all_active_sessions();
+    // await this.end_all_active_sessions();
     await this.executeWarmUpForSessionsForActiveDesktop(profile_name);
   }
 
