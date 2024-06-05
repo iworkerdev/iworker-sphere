@@ -98,7 +98,7 @@ export const DashboardCollection: FC = () => {
         <ErrorAlert
           message={
             error.message ||
-            'This might be due to the service being down, you can restart the service in the terminal window. open the terminal window and cancel any running operations by using key combination `Ctrl + c`, and the type `yarn dev` and press enter.'
+            'This might be due to the service being down, you can restart the service in the terminal window. open the terminal window and cancel any running operations by using key combination `Ctrl + c`, and the type `npm run start` and press enter.'
           }
           title='An error occurred while fetching data'
         />
