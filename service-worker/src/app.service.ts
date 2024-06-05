@@ -54,6 +54,7 @@ export class AppService {
         },
         {
           status: response.data.status,
+          successful_notifications_count: 0,
         },
         { new: true },
       );
