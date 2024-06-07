@@ -131,10 +131,15 @@ export class IworkerSphereController {
   }
 
   @Get('desktop/:desktop_id/sessions')
-  async getDesktopSessions(@Param('desktop_id') desktop_id: string) {
+  async getDesktopSessions(
+    @Param('desktop_id') desktop_id: string,
+    @Query('filter') filter: string,
+  ) {
     try {
-      const sessions =
-        await this.iworkerSphereService.getSessionsForDesktop(desktop_id);
+      const sessions = await this.iworkerSphereService.getSessionsForDesktop(
+        desktop_id,
+        filter,
+      );
       return sessions;
     } catch (error) {
       HandleCatchException(error);
@@ -148,6 +153,18 @@ export class IworkerSphereController {
       await this.automationService.syncSessions();
       return {
         uuid: desktop_id,
+      };
+    } catch (error) {
+      HandleCatchException(error);
+    }
+  }
+
+  @Post('desktop/:desktop_id/end-all-active-sessions')
+  async endAllActiveSessions(@Param('desktop_id') desktop_id: string) {
+    try {
+      this.automationService.end_all_active_sessions(desktop_id);
+      return {
+        message: `Action triggered to end all active sessions for the desktop with id: ${desktop_id}`,
       };
     } catch (error) {
       HandleCatchException(error);

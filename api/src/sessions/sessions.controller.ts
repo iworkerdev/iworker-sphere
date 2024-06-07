@@ -40,36 +40,6 @@ export class SessionsController {
     return this.sessionsService.createOne(session);
   }
 
-  @Post('automation/create-sessions')
-  createSessions(@Body('count') count: number) {
-    this.automationService.createSessions(count);
-    return {
-      event: 'create-sessions',
-      received: true,
-      timestamp: new Date().toISOString(),
-    };
-  }
-
-  @Post('automation/start-sessions')
-  startSessions(@Body('count') count: number) {
-    this.automationService.startSessions(count);
-    return {
-      event: 'start-sessions',
-      received: true,
-      timestamp: new Date().toISOString(),
-    };
-  }
-
-  @Get('automation/end-sessions')
-  endSessions() {
-    this.automationService.end_all_active_sessions();
-    return {
-      event: 'end-sessions',
-      received: true,
-      timestamp: new Date().toISOString(),
-    };
-  }
-
   @Throttle({ default: { limit: 1, ttl: 15000 } })
   @Get('automation/sync-sessions')
   async syncSessions() {
@@ -109,7 +79,7 @@ export class SessionsController {
       });
     } else {
       const sphereRunningSessions =
-        await this.automationService.getRunningSessions();
+        await this.automationService.getRunningSessions(selectedDesktop.uuid);
 
       await this.sessionsService.deactivateAllActiveSessions(
         selectedDesktop.uuid,

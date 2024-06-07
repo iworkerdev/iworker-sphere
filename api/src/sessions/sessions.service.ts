@@ -6,6 +6,7 @@ import { Model } from 'mongoose';
 import { HandleCatchException } from 'src/utils';
 import {
   CreateSphereSessionDTO,
+  SessionStatus,
   UpdateSphereSessionDTO,
 } from './dto/sphere-session.dto';
 import { toNumber } from 'lodash';
@@ -78,9 +79,26 @@ export class SessionsService {
       const sessions = await this.sphereSessionModel
         .find({
           user_id: this.configService.get('USER_ID'),
-          status: 'IDLE',
+          status: SessionStatus.STOPPED,
         })
         .limit(count);
+      return sessions;
+    } catch (error) {
+      return HandleCatchException(error);
+    }
+  }
+
+  async findManyActiveByTypeInDesktop(
+    desktopId: string,
+    type: string,
+  ): Promise<SphereSession[]> {
+    try {
+      const sessions = await this.sphereSessionModel.find({
+        user_id: this.configService.get('USER_ID'),
+        status: SessionStatus.AUTOMATION_RUNNING,
+        desktop_id: desktopId,
+        type,
+      });
       return sessions;
     } catch (error) {
       return HandleCatchException(error);
@@ -92,7 +110,7 @@ export class SessionsService {
       const sessions = await this.sphereSessionModel.find({
         user_id: this.configService.get('USER_ID'),
         desktop_id: desktopId,
-        status: 'ACTIVE',
+        status: SessionStatus.AUTOMATION_RUNNING,
       });
       return sessions;
     } catch (error) {
@@ -105,10 +123,10 @@ export class SessionsService {
       const sessions = await this.sphereSessionModel.updateMany(
         {
           user_id: this.configService.get('USER_ID'),
-          status: 'ACTIVE',
+          status: SessionStatus.AUTOMATION_RUNNING,
           desktop_id,
         },
-        { status: 'IDLE' },
+        { status: SessionStatus.STOPPED },
       );
       return sessions;
     } catch (error) {
@@ -116,13 +134,67 @@ export class SessionsService {
     }
   }
 
-  async findManyByDesktopId(desktopId: string) {
+  async findManyByDesktopId(desktopId: string, filter?: string) {
+    const FILTERS = {
+      ALL: 'ALL',
+      RUNNING: 'RUNNING',
+      STOPPED: 'STOPPED',
+      AUTOMATION_RUNNING: 'AUTOMATION_RUNNING',
+      _100_PERCENT_SUCCESS: '_100_PERCENT_SUCCESS',
+      _LESS_THAN_100_PERCENT_SUCCESS: '_LESS_THAN_100_PERCENT_SUCCESS',
+    };
     try {
-      const sessions = await this.sphereSessionModel.find({
-        user_id: this.configService.get('USER_ID'),
-        desktop_id: desktopId,
-      });
-      return sessions;
+      switch (filter) {
+        case FILTERS.ALL: {
+          return this.sphereSessionModel.find({
+            user_id: this.configService.get('USER_ID'),
+            desktop_id: desktopId,
+          });
+        }
+        case FILTERS.RUNNING: {
+          return await this.sphereSessionModel.find({
+            user_id: this.configService.get('USER_ID'),
+            desktop_id: desktopId,
+            status: SessionStatus.RUNNING,
+          });
+        }
+        case FILTERS.STOPPED: {
+          return await this.sphereSessionModel.find({
+            user_id: this.configService.get('USER_ID'),
+            desktop_id: desktopId,
+            status: SessionStatus.STOPPED,
+          });
+        }
+        case FILTERS.AUTOMATION_RUNNING: {
+          return await this.sphereSessionModel.find({
+            user_id: this.configService.get('USER_ID'),
+            desktop_id: desktopId,
+            status: SessionStatus.AUTOMATION_RUNNING,
+          });
+        }
+        case FILTERS._100_PERCENT_SUCCESS: {
+          return await this.sphereSessionModel.find({
+            user_id: this.configService.get('USER_ID'),
+            desktop_id: desktopId,
+            last_activity: { $ne: null },
+            last_run_success_rate: '100%',
+          });
+        }
+        case FILTERS._LESS_THAN_100_PERCENT_SUCCESS: {
+          return await this.sphereSessionModel.find({
+            user_id: this.configService.get('USER_ID'),
+            desktop_id: desktopId,
+            last_activity: { $ne: null },
+            last_run_success_rate: { $ne: '100%' },
+          });
+        }
+        default: {
+          return this.sphereSessionModel.find({
+            user_id: this.configService.get('USER_ID'),
+            desktop_id: desktopId,
+          });
+        }
+      }
     } catch (error) {
       return HandleCatchException(error);
     }
@@ -136,13 +208,13 @@ export class SessionsService {
         sessions = await this.sphereSessionModel
           .find({
             user_id: this.configService.get('USER_ID'),
-            status: 'ACTIVE',
+            status: SessionStatus.AUTOMATION_RUNNING,
           })
           .limit(count);
       } else {
         await this.sphereSessionModel.find({
           user_id: this.configService.get('USER_ID'),
-          status: 'ACTIVE',
+          status: SessionStatus.AUTOMATION_RUNNING,
         });
       }
 
@@ -369,6 +441,27 @@ export class SessionsService {
     try {
       const updatedSession = this.sphereSessionModel.findByIdAndUpdate(
         id,
+        session,
+        { new: true },
+      );
+
+      if (!updatedSession) {
+        throw new NotFoundException('Session not found');
+      }
+
+      return updatedSession;
+    } catch (error) {
+      return HandleCatchException(error);
+    }
+  }
+
+  async updateOneBySessionId(
+    sessionId: string,
+    session: UpdateSphereSessionDTO,
+  ) {
+    try {
+      const updatedSession = this.sphereSessionModel.findOneAndUpdate(
+        { session_id: sessionId },
         session,
         { new: true },
       );

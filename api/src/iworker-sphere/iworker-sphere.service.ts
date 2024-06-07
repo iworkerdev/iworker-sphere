@@ -115,10 +115,12 @@ export class IworkerSphereService {
     }
   }
 
-  async getSessionsForDesktop(desktopId: string) {
+  async getSessionsForDesktop(desktopId: string, filter?: string) {
     try {
-      const sessions =
-        await this.sessionsService.findManyByDesktopId(desktopId);
+      const sessions = await this.sessionsService.findManyByDesktopId(
+        desktopId,
+        filter,
+      );
 
       return sessions;
     } catch (error) {
