@@ -1,17 +1,48 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import {
   IsDateString,
+  IsIn,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
 } from 'class-validator';
 
+export enum SessionType {
+  NORMAL = 'NORMAL',
+  API = 'API',
+}
+
+export enum SessionStatus {
+  ALL = 'ALL',
+  RUNNING = 'RUNNING',
+  STOPPED = 'STOPPED',
+  IMPORTED = 'IMPORTED',
+  WARMUP = 'WARMUP',
+  AUTOMATION_RUNNING = 'AUTOMATION_RUNNING',
+}
+
+export const SessionStatusEnumMap = {
+  running: SessionStatus.RUNNING,
+  stopped: SessionStatus.STOPPED,
+  imported: SessionStatus.IMPORTED,
+  warmup: SessionStatus.WARMUP,
+  automationRunning: SessionStatus.AUTOMATION_RUNNING,
+};
+
+export type SessionStatusEnum = keyof typeof SessionStatusEnumMap;
+
 export class CreateSphereSessionDTO {
   @ApiProperty()
   @IsString()
   @IsNotEmpty()
   name: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsIn([SessionType.NORMAL, SessionType.API])
+  @IsNotEmpty()
+  type: SessionType;
 
   @ApiProperty()
   @IsString()
@@ -51,7 +82,8 @@ export class CreateSphereSessionDTO {
   @ApiProperty()
   @IsOptional()
   @IsString()
-  status?: string;
+  @IsIn([SessionStatus.RUNNING, SessionStatus.STOPPED, SessionStatus.WARMUP])
+  status?: SessionStatus;
 
   @ApiProperty()
   @IsOptional()

@@ -1,6 +1,7 @@
 import * as mongoose from 'mongoose';
 
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { SessionStatus, SessionType } from '../dto';
 
 @Schema({
   timestamps: true,
@@ -8,6 +9,9 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
   collection: 'sphere_sessions',
 })
 export class SphereSession extends mongoose.Document {
+  @Prop({ required: true, default: SessionType.NORMAL })
+  type: SessionType;
+
   @Prop({ required: true })
   team_name: string;
 
@@ -38,8 +42,8 @@ export class SphereSession extends mongoose.Document {
   @Prop({ required: true, default: 8089 })
   debug_port?: string;
 
-  @Prop({ required: false, default: 'IDLE' })
-  status?: string;
+  @Prop({ required: false, default: SessionStatus.STOPPED })
+  status?: SessionStatus;
 
   @Prop({ required: false, default: null })
   last_activity?: Date;

@@ -30,9 +30,14 @@ import {
 } from '../../events-config';
 import { HandleCatchException, __delay__ } from 'src/utils';
 import { LoggerService } from 'src/logger/logger.service';
+import {
+  SessionStatus,
+  SessionStatusEnum,
+  SessionStatusEnumMap,
+  SessionType,
+} from '../dto';
 
 const LINKEN_SHPERE_URL = 'http://127.0.0.1:40080/sessions';
-
 function extractSecondDomain(urls: string[]) {
   return urls
     .map((url) => {
@@ -118,6 +123,12 @@ export class AutomationService {
 
   async changeActiveDesktop(desktopId: string) {
     try {
+      const currentActiveDesktop = await this.getActiveDesktop();
+
+      if (currentActiveDesktop?.uuid === desktopId) {
+        return currentActiveDesktop;
+      }
+
       await this.httpService.axiosRef.post(`http://localhost:40080/desktops`, {
         uuid: desktopId,
       });
@@ -137,10 +148,10 @@ export class AutomationService {
     return activeDesktop?.length > 0 ? activeDesktop?.[0] : null;
   }
 
-  async getRunningSessions() {
+  async getRunningSessions(desktopId: string): Promise<SphereApiSession[]> {
     try {
       const data = JSON.stringify({
-        status: 'running',
+        status: 'automationRunning',
       });
 
       const config = {
@@ -154,9 +165,20 @@ export class AutomationService {
       };
 
       const response = await this.httpService.axiosRef.request(config);
-      const sessions = response?.data as SphereApiSession[];
 
-      return sessions;
+      const sphere_sessions = response?.data as SphereApiSession[];
+
+      const active_in_warmup =
+        await this.sessionsService.findManyActiveByTypeInDesktop(
+          desktopId,
+          SessionType.API,
+        );
+
+      const api_running_sessions = filter(sphere_sessions, (session) => {
+        return active_in_warmup.find((s) => s.session_id === session.uuid);
+      });
+
+      return api_running_sessions as SphereApiSession[];
     } catch (error) {
       console.error({
         message: 'Error fetching sessions' + error?.message,
@@ -216,15 +238,22 @@ export class AutomationService {
           for (let i = 0; i < sessions.length; i++) {
             const session = sessions[i];
 
+            const session_status = session.status as SessionStatusEnum;
+            const status = SessionStatusEnumMap[session_status];
+
             try {
               const payload = {
                 session_id: session.uuid,
                 name: session.name,
-                status: session.status === 'stopped' ? 'IDLE' : 'ACTIVE',
+                status,
                 team_name: activeDesktop?.team_name || 'Unknown',
                 desktop_id: activeDesktop?.uuid || 'Unknown',
                 desktop_name: activeDesktop?.name || 'Unknown',
                 session_execution_batch_id: batchId,
+                type:
+                  status === SessionStatus.AUTOMATION_RUNNING
+                    ? SessionType.API
+                    : SessionType.NORMAL,
               };
 
               let existingSession = null;
@@ -247,6 +276,10 @@ export class AutomationService {
                 );
                 const s_new = await this.sessionsService.createOne({
                   ...payload,
+                  type:
+                    payload.status === SessionStatus.AUTOMATION_RUNNING
+                      ? SessionType.API
+                      : SessionType.NORMAL,
                   debug_port: `${debug_port}`,
                 });
                 results.push(s_new);
@@ -275,7 +308,7 @@ export class AutomationService {
     try {
       const session = await this.sessionsService.findOne(_id);
 
-      if (session.status === 'ACTIVE') {
+      if (session.status === SessionStatus.AUTOMATION_RUNNING) {
         return session;
       }
 
@@ -290,13 +323,10 @@ export class AutomationService {
 
       const { data } = response;
 
-      console.log({
-        data,
-      });
-
       if (data?.uuid) {
         const _s = await this.sessionsService.updateOne(_id, {
-          status: 'ACTIVE',
+          status: SessionStatus.AUTOMATION_RUNNING,
+          type: SessionType.API,
           last_activity: new Date(),
         });
         return _s;
@@ -336,24 +366,31 @@ export class AutomationService {
   @OnEvent(EVENTS.STOP_SESSION)
   async stopLinkenSphereSession(event: StopSessionEvent) {
     const { session_id, is_single_execution } = event.payload;
+
+    let session = null;
+
     try {
-      const session = await this.sessionsService.findOneBySessionId(session_id);
+      session = await this.sessionsService.findOneBySessionId(session_id);
+    } catch (error) {}
+
+    try {
       const activeDesktop = await this.getActiveDesktop();
       const highestExecutionId =
         await this.sessionsService.getHighestExecutionIdForDesktop(
           activeDesktop?.uuid,
         );
 
-      await this.stop_session(session_id);
-
-      const _s = await this.sessionsService.updateOne(session.id, {
-        status: 'IDLE',
-      });
-      this.logEvent('STOP_SESSION', {
-        session_id: session.session_id,
-        session_execution_id: session.session_execution_id,
-        status: _s.status,
-      });
+      if (session.type === SessionType.API) {
+        await this.stop_session(session_id);
+        const _s = await this.sessionsService.updateOne(session.id, {
+          status: SessionStatus.STOPPED,
+        });
+        this.logEvent('STOP_SESSION', {
+          session_id: session.session_id,
+          session_execution_id: session.session_execution_id,
+          status: _s.status,
+        });
+      }
 
       if (is_single_execution) {
         return;
@@ -397,63 +434,49 @@ export class AutomationService {
         }
       }
     } catch (error) {
-      await this.stop_session(session_id);
-      console.error({
-        message: `Error stopping session ${session_id} - ${error?.message}`,
-        error: error?.response?.data || error?.message,
-      });
-    }
-  }
-
-  async createSessions(_count = 10) {
-    try {
-      await this.httpService.axiosRef.post(
-        `${LINKEN_SHPERE_URL}/create_quick`,
-        {
-          count: _count < 10 ? 10 : 10,
-        },
-      );
-
-      return await this.syncSessions();
-    } catch (error) {
-      console.error(error);
-    }
-  }
-
-  async startSessions(count = 5) {
-    const sessions = await this.sessionsService.findManyIdleByUserId(count);
-
-    for (let i = 0; i < count; i++) {
-      const session = sessions[i];
-
-      if (session?.id) {
-        try {
-          await this.startLinkenSphereSession(session?.id);
-        } catch (error) {
-          console.log(error);
+      try {
+        if (session?.type === SessionType.API) {
+          await this.stop_session(session_id);
+          const _s = await this.sessionsService.updateOne(session?.id, {
+            status: SessionStatus.STOPPED,
+          });
+          this.logEvent('STOP_SESSION', {
+            session_id: session.session_id,
+            session_execution_id: session.session_execution_id,
+            status: _s.status,
+          });
         }
+      } catch (error) {
+        console.error({
+          message: `Error stopping session ${session_id} - ${error?.message}`,
+          error: error?.response?.data || error?.message,
+        });
       }
     }
-
-    this.logEvent('START_SESSIONS', { count });
   }
 
-  async end_all_active_sessions() {
-    const sessions = await this.getRunningSessions();
+  async end_all_active_sessions(desktopId: string) {
+    const active_sessions = await this.getRunningSessions(desktopId);
 
-    for (let i = 0; i < sessions.length; i++) {
-      const session = sessions[i];
+    for (let i = 0; i < active_sessions.length; i++) {
+      const session = active_sessions[i];
 
       if (session?.uuid) {
         try {
           await this.stop_session(session?.uuid);
+          await this.sessionsService.updateOneBySessionId(session?.uuid, {
+            status: SessionStatus.STOPPED,
+          });
         } catch (error) {
           console.log(error);
         }
       }
     }
 
-    this.logEvent('END_SESSIONS', { count: sessions.length });
+    this.logEvent('END_SESSIONS', {
+      count: active_sessions.length,
+      ended: active_sessions.map((s) => s.uuid),
+    });
   }
 
   private async connectToBrowser(debugPort: number) {
@@ -543,6 +566,12 @@ export class AutomationService {
       const visitedLinks = [];
 
       const browse = async (url: string) => {
+        const __session__ = await this.sessionsService.findOne(mongo_id);
+
+        if (__session__.status === SessionStatus.STOPPED) {
+          return [];
+        }
+
         // delay 2.5 seconds
         await __delay__(3000);
 
@@ -621,7 +650,7 @@ export class AutomationService {
             );
 
             // Retry logic
-            for (let retry = 0; retry < 3; retry++) {
+            for (let retry = 0; retry < 2; retry++) {
               await __delay__(2000); // Wait before retrying
               try {
                 await browse(link.url);
@@ -910,7 +939,7 @@ export class AutomationService {
       const desktop_profiles = map(_desktopsToWarmUp, (desktop, index) => ({
         desktop_id: desktop.uuid,
         desktop_name: desktop.name,
-        status: 'IDLE',
+        status: SessionStatus.STOPPED,
         execution_sequence: index + 1,
         started_at: null,
         finished_at: null,
@@ -935,7 +964,7 @@ export class AutomationService {
       const sequence = await this.profileWarmUpSequenceModel.create({
         sequence_id: formatSequenceId(NEW_PROFILE_SEQUENCE_ID),
         sequence_number: NEW_PROFILE_SEQUENCE_ID,
-        status: 'IDLE',
+        status: SessionStatus.STOPPED,
         desktop_profiles,
       });
 
