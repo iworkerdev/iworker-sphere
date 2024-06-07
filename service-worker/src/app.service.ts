@@ -80,7 +80,7 @@ export class AppService {
         Hello, Team, 
         <br>
         <br>
-        The LinkenSphere automation service tool  on ${VM_NAME} is currently experiencing a downtime. 
+        The Warm up automation service tool  on ${VM_NAME} is currently experiencing a downtime. 
         <br>
         Kindly log in to the VM and re-start the service.
         <br>
@@ -89,7 +89,7 @@ export class AppService {
         Warm Regards,
         <p style="color:blue;">Support Bot</p>
         `,
-        subject: 'Linken Shere Automation Service DownTime',
+        subject: 'Warmup Automation Service DownTime',
         recipientName: 'Baraka',
       });
 
