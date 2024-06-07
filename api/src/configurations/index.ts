@@ -17,7 +17,7 @@ const common = {
 
 const config = {
   development: {
-    MONGODB_URI: 'mongodb://localhost:27017/db-linken-sphere-development',
+    MONGODB_URI: `mongodb://localhost:27017/db-linken-sphere-dev-${VM_NAME}`,
   },
   staging: {
     MONGODB_URI: `${process.env.MONGODB_URI}/db-linken-sphere-stg-${VM_NAME}?tls=true&authSource=admin&retryWrites=true&w=majority`,
