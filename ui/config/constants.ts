@@ -44,12 +44,16 @@ export const SWR_CONFIG = (
 export const API_ENDPOINTS_CONFIG = {
   getTeams: `/iworker-sphere/teams`,
   getDesktops: `/iworker-sphere/desktops`,
-  getSessionsForDesktop: (desktopId: string) =>
-    `/iworker-sphere/desktop/${desktopId}/sessions`,
+  getSessionsForDesktop: (desktopId: string, filter = '') =>
+    filter
+      ? `/iworker-sphere/desktop/${desktopId}/sessions?filter=${filter}`
+      : `/iworker-sphere/desktop/${desktopId}/sessions`,
   changeActiveDesktop: (desktopId: string) =>
     `/iworker-sphere/desktop/${desktopId}/activate`,
   warmUpProfile: '/iworker-sphere/session/wam-up',
   endWarmUp: '/iworker-sphere/session/stop',
   warmUpAllProfiles: '/sessions/automation/trigger-warm-up-execution',
   bulkWarmUpDesktops: '/sessions/automation/bulk-profile-warm-up',
+  endAllWarmUpsInDesktop: (desktopId: string) =>
+    `/iworker-sphere/desktop/${desktopId}/end-all-active-sessions`,
 }
