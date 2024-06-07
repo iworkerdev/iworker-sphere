@@ -14,10 +14,10 @@ const EVENTS = {
 const SERVICE_ID = `${VM_NAME}-linken-sphere-automation-service`,
   MAX_NOTIFICATIONS = 4,
   DOWN_TIME_INTERVALS = {
-    _5_MINUTES: 300000,
-    _15_MINUTES: 900000,
-    _30_MINUTES: 1800000,
+    _30MINUTES: 1800000,
     _1_HOUR: 3600000,
+    _3_HOURS: 10800000,
+    _6_HOURS: 21600000,
   };
 
 enum SERVICE_STATUS {
@@ -181,15 +181,15 @@ export class AppService {
       setTimeout(async () => {
         await this.sendEmailNotification();
         await incrementNotificationCount();
-      }, DOWN_TIME_INTERVALS._15_MINUTES);
-      setTimeout(async () => {
-        await this.sendEmailNotification();
-        await incrementNotificationCount();
-      }, DOWN_TIME_INTERVALS._30_MINUTES);
-      setTimeout(async () => {
-        await this.sendEmailNotification();
-        await incrementNotificationCount();
       }, DOWN_TIME_INTERVALS._1_HOUR);
+      setTimeout(async () => {
+        await this.sendEmailNotification();
+        await incrementNotificationCount();
+      }, DOWN_TIME_INTERVALS._3_HOURS);
+      setTimeout(async () => {
+        await this.sendEmailNotification();
+        await incrementNotificationCount();
+      }, DOWN_TIME_INTERVALS._6_HOURS);
     } catch (error) {
       console.log(error);
     }
