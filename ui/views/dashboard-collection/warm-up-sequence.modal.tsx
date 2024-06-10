@@ -67,9 +67,6 @@ export const WarmUpSequenceModal: FC<WarmUpModalProps> = ({ desktops }) => {
       return desktop?.name
     })
 
-    console.log({
-      profiles,
-    })
 
     try {
       await apiClient.post(API_ENDPOINTS_CONFIG.bulkWarmUpDesktops, {
