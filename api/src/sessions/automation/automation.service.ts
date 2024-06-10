@@ -90,6 +90,9 @@ export class AutomationService {
       }
     }
     signInToLinkenSphere();
+
+    // delete all profile warm up sequences
+    this.profileWarmUpSequenceModel.deleteMany({}).exec();
   }
   private readonly logger = new Logger();
   private browser: puppeteer.Browser | null = null;
@@ -836,7 +839,7 @@ export class AutomationService {
 
   async executeProfileWarmUpSequence(desktop_id: string, desktop_name: string) {
     await this.changeActiveDesktop(desktop_id);
-    await this.syncSessions()
+    await this.syncSessions();
     const event = new ProfileWarmUpEvent({
       profile_name: desktop_name,
     });
