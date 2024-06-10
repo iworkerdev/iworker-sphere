@@ -51,13 +51,13 @@ export class SessionsController {
       response,
     };
   }
-  @Throttle({ default: { limit: 1, ttl: 60000 } })
+  @Throttle({ default: { limit: 1, ttl: 15000 } })
   @Post('automation/bulk-profile-warm-up')
   async bulkProfileWarmUp(@Body('profiles') profiles: string[]) {
     return await this.automationService.bulkWarmUp(profiles);
   }
 
-  @Throttle({ default: { limit: 1, ttl: 60000 } })
+  @Throttle({ default: { limit: 1, ttl: 15000 } })
   @Post('automation/trigger-warm-up-execution')
   async triggerWarmUpExecutionForActiveDesktop(
     @Body('profile_name') profile_name: string,
