@@ -836,7 +836,7 @@ export class AutomationService {
 
   async executeProfileWarmUpSequence(desktop_id: string, desktop_name: string) {
     await this.changeActiveDesktop(desktop_id);
-
+    await this.syncSessions()
     const event = new ProfileWarmUpEvent({
       profile_name: desktop_name,
     });
