@@ -1,12 +1,7 @@
+import { SessionStatus } from '../dto';
 import * as mongoose from 'mongoose';
 
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-
-export enum ProfileWarmUpSequenceStatus {
-  IDLE = 'IDLE',
-  RUNNING = 'RUNNING',
-  COMPLETED = 'COMPLETED',
-}
 
 export class DesktopProfile {
   @Prop({ required: true })
@@ -15,8 +10,8 @@ export class DesktopProfile {
   @Prop({ required: true })
   desktop_name: string;
 
-  @Prop({ required: false, default: ProfileWarmUpSequenceStatus.IDLE })
-  status: ProfileWarmUpSequenceStatus;
+  @Prop({ required: false, default: SessionStatus.STOPPED })
+  status: SessionStatus;
 
   @Prop({ required: true })
   execution_sequence: number;
@@ -43,10 +38,10 @@ export class ProfileWarmUpSequence extends mongoose.Document {
   @Prop({
     required: true,
     type: String,
-    enum: ProfileWarmUpSequenceStatus,
-    default: ProfileWarmUpSequenceStatus.IDLE,
+    enum: SessionStatus,
+    default: SessionStatus.STOPPED,
   })
-  status: ProfileWarmUpSequenceStatus;
+  status: SessionStatus;
 
   @Prop({ required: true, type: Array<DesktopProfile>, default: [] })
   desktop_profiles: DesktopProfile[];

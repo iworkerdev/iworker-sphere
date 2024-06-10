@@ -12,11 +12,7 @@ import { chunk, filter, isArray, map, reduce, sortBy, toNumber } from 'lodash';
 import { HttpService } from '@nestjs/axios';
 import { Logger } from '@nestjs/common';
 import { SessionsService } from '../sessions.service';
-import {
-  ProfileWarmUpSequence,
-  ProfileWarmUpSequenceStatus,
-  SessionsExecutionConfig,
-} from '../schema';
+import { ProfileWarmUpSequence, SessionsExecutionConfig } from '../schema';
 import { WebSearchTopics } from 'src/constants';
 import { uniqBy } from 'lodash';
 import { InjectModel } from '@nestjs/mongoose';
@@ -861,7 +857,7 @@ export class AutomationService {
 
     try {
       const sequence = await this.profileWarmUpSequenceModel.findOne({
-        status: 'RUNNING',
+        status: SessionStatus.RUNNING,
       });
 
       const desktop = sequence?.desktop_profiles.find(
@@ -875,8 +871,7 @@ export class AutomationService {
       await this.profileWarmUpSequenceModel.findByIdAndUpdate(
         sequence.id,
         {
-          'desktop_profiles.$[element].status':
-            ProfileWarmUpSequenceStatus.COMPLETED,
+          'desktop_profiles.$[element].status': SessionStatus.COMPLETED,
           'desktop_profiles.$[element].finished_at': new Date(),
         },
         {
@@ -891,7 +886,7 @@ export class AutomationService {
 
       if (!nextDesktop) {
         await this.profileWarmUpSequenceModel.findByIdAndUpdate(sequence.id, {
-          status: 'COMPLETED',
+          status: SessionStatus.COMPLETED,
           finished_at: new Date(),
         });
         return;
@@ -900,7 +895,7 @@ export class AutomationService {
       await this.profileWarmUpSequenceModel.findByIdAndUpdate(
         sequence.id,
         {
-          'desktop_profiles.$[element].status': 'RUNNING',
+          'desktop_profiles.$[element].status': SessionStatus.RUNNING,
           'desktop_profiles.$[element].started_at': new Date(),
         },
         {
@@ -952,7 +947,7 @@ export class AutomationService {
 
       // If there is a running sequence, return
       const runningSequence = await this.profileWarmUpSequenceModel.findOne({
-        status: 'RUNNING',
+        status: SessionStatus.RUNNING,
       });
 
       if (runningSequence) {
@@ -978,7 +973,7 @@ export class AutomationService {
       await this.profileWarmUpSequenceModel.findByIdAndUpdate(
         sequence.id,
         {
-          status: 'RUNNING',
+          status: SessionStatus.RUNNING,
           started_at: new Date(),
         },
         { new: true },
@@ -989,7 +984,7 @@ export class AutomationService {
         await this.profileWarmUpSequenceModel.findByIdAndUpdate(
           sequence.id,
           {
-            'desktop_profiles.$[element].status': 'RUNNING',
+            'desktop_profiles.$[element].status': SessionStatus.RUNNING,
             'desktop_profiles.$[element].started_at': new Date(),
           },
           {

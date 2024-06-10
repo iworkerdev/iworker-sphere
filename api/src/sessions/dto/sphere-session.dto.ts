@@ -20,6 +20,7 @@ export enum SessionStatus {
   IMPORTED = 'IMPORTED',
   WARMUP = 'WARMUP',
   AUTOMATION_RUNNING = 'AUTOMATION_RUNNING',
+  COMPLETED = 'COMPLETED',
 }
 
 export const SessionStatusEnumMap = {
